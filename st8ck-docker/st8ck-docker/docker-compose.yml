@@ -1,0 +1,41 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: st8ck
+      POSTGRES_USER: st8ck
+      POSTGRES_PASSWORD: st8ckpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+
+  app:
+    build:
+      context: .
+      dockerfile: ./api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgres://st8ck:st8ckpass@db:5432/st8ck
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "8080:3000"
+    volumes:
+      - app_data:/app/uploads
+
+  web_online:
+    build: ./web-online
+    container_name: web_online
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+
+volumes:
+  db_data:
+  app_data:
