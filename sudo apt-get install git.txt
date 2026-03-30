@@ -73,3 +73,12 @@ git pull origin main เอาที่แก้ไขลงมา remote to loc
 
 git fetch origin
 git merge origin/main
+
+
+----------------------------------------------------------------
+
+cd /home/sysadmin/web-app-st8ck
+git pull origin main
+cd st8ck-docker/st8ck-docker
+docker compose up -d --build
+docker compose ps

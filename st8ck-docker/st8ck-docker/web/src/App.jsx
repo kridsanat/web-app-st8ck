@@ -205,13 +205,13 @@ function Labeled({ label, children }) {
 
 function Tabs({ tab, setTab, labels }) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-sky-50 border-t border-sky-100">
+    <div className="fixed bottom-0 left-0 right-0 bg-slate-50 border-t border-slate-200">
       <div className="max-w-4xl mx-auto grid grid-cols-4 text-sm">
         {labels.map((l, i) => (
           <button
             key={i}
             onClick={() => setTab(i)}
-            className={"py-3 " + (tab === i ? "font-semibold text-sky-800 border-t-2 border-sky-500" : "text-slate-500 hover:text-sky-700")}
+            className={"py-3 " + (tab === i ? "font-semibold text-slate-800 border-t-2 border-slate-500" : "text-slate-500 hover:text-slate-700")}
           >
             {l}
           </button>
@@ -1577,20 +1577,20 @@ export default function App() {
       `}</style>
       <div className="min-h-screen pb-16 text-gray-800">
 
-        <header className="sticky top-0 z-40 bg-sky-50/95 backdrop-blur border-b border-sky-100">
+        <header className="sticky top-0 z-40 bg-slate-50/95 backdrop-blur border-b border-slate-200">
           <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="text-xl font-extrabold">St8ck</div>
             <div className="flex items-center gap-4 text-sm">
 
 <button
   onClick={() => setTab(98)}
-  className={tab===98 ? "font-semibold text-sky-800" : "text-slate-500 hover:text-sky-700"}
+  className={tab===98 ? "font-semibold text-slate-800" : "text-slate-500 hover:text-slate-700"}
 >
   ร้านค้า
 </button>
  <button
    onClick={() => setTab(99)}
-  className={tab===99 ? "font-semibold text-sky-800" : "text-slate-500 hover:text-sky-700"}
+  className={tab===99 ? "font-semibold text-slate-800" : "text-slate-500 hover:text-slate-700"}
  >
    ค่าขนส่ง
  </button>
@@ -1600,7 +1600,7 @@ export default function App() {
                 <button
                   key={index}
                   onClick={() => setTab(mainTabLabels.length + index)}
-                  className={tab === mainTabLabels.length + index ? "font-semibold text-sky-800" : "text-slate-500 hover:text-sky-700"}
+                  className={tab === mainTabLabels.length + index ? "font-semibold text-slate-800" : "text-slate-500 hover:text-slate-700"}
                 >
                   {label}
                 </button>
