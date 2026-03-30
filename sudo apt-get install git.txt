@@ -1,0 +1,75 @@
+rm -rvf php-webapps-nu
+
+sudo apt-get install git
+cd php-webapps-nu
+mkdir php
+cd php
+git clone https://github.com/kridsanat/php-webapps-nu scr
+
+nano Dockerfile
+nano docker-compose.yml
+
+cat docker-compose.yml
+
+-----------
+New!
+
+ไปที่ floder user ที่เครื่อง ubantu server ใช้แค่คำสั้งล่างอันเดียวพอ
+git clone https://github.com/kridsanat/php-webapps-nu
+
+-------------
+ตรวจสอบ
+sudo docker ps
+sudo docker stop ตามด้วยชื่อ container เพื่อหยุด
+
+ดู container ทั้งหมด
+sudo docker ps --all
+
+sudo docker rm ตามด้วยชื่อ container เพื่อลบ หลายๆอันได้ใส่เว้นวรรค
+
+คำสั่ง run ตัว compose
+sudo docker compose up
+sudo docker-compose -f docker-compose-mysql.yml up --build -d
+
+---------------------------------
+
+Commands to add or create a new sudo user (admin) on an Ubuntu or Debian Linux server:
+
+Create a new user named marlena, cmd: 
+adduser marlena
+
+Make marlena user ‘sudo user’ (admin) cmd: 
+usermod -aG sudo marlena
+
+Verify it by running the id marlena Log in as marlena cmd:
+su - marlena
+
+Than cmd sudo command for verification. For example cmd: 
+sudo ls -l /etc/shadow
+
+----------------------------------
+ git clone ทับที่เดิมบน server   
+
+existing folder that already contains files/folders
+Follow the following steps (in this case for the root folder):
+
+cd / 
+git init
+git remote add origin <your-repo-url>
+git pull
+git checkout main -f
+git branch --set-upstream-to origin/master
+Change "cd /" to point to your desired folder เข้าไป floder ของ project
+
+
+https://github.com/kridsanat/php-webapps-nu.git
+
+git status
+git add .
+git commit -m "Save local changes after rebase"
+git push origin main เอาที่แก้ไขขึ้นไป local to remote
+
+git pull origin main เอาที่แก้ไขลงมา remote to local
+
+git fetch origin
+git merge origin/main
