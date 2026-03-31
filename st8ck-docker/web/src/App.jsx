@@ -205,13 +205,13 @@ function Labeled({ label, children }) {
 
 function Tabs({ tab, setTab, labels }) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-gray-100 border-t">
+    <div className="fixed bottom-0 left-0 right-0 bg-green-50 border-t border-green-200">
       <div className="max-w-4xl mx-auto grid grid-cols-4 text-sm">
         {labels.map((l, i) => (
           <button
             key={i}
             onClick={() => setTab(i)}
-            className={"py-3 " + (tab === i ? "font-semibold text-gray-900 border-t-2 border-gray-900" : "text-gray-500")}
+            className={"py-3 " + (tab === i ? "font-semibold text-green-800 border-t-2 border-green-500" : "text-slate-500 hover:text-green-700")}
           >
             {l}
           </button>
@@ -1026,6 +1026,19 @@ function ShopTab() {
             ? <img src={form.banner_url} className="h-16 object-cover border rounded-lg mb-2"/>
             : <div className="h-16 border rounded-lg grid place-items-center text-gray-400">ไม่มีรูป</div>}
           <button onClick={()=>up('banner_url')} className="px-3 py-1.5 border rounded-lg">เลือกรูป</button>
+
+
+<label className="text-sm">ลิงก์แบนเนอร์
+  <input
+    className="input w-full"
+    value={form.banner_link || ''}
+    onChange={(e)=> setForm({...form, banner_link: e.target.value})}
+    placeholder="https://example.com/landing"
+  />
+</label>
+       
+       
+       
         </div>
 
         <div>
@@ -1414,7 +1427,7 @@ return (
   onChange={(e)=>changeStatus(b.id, e.target.value)}
   className="text-xs px-2 py-1 rounded-lg border bg-white"
 >
-  <option value="pending">รอดำเนินการ</option>
+  
   <option value="success">สำเร็จ</option>
   <option value="cancelled">ยกเลิก</option>
 </select>
@@ -1440,6 +1453,19 @@ return (
     {b.customer_phone && <div><b>โทร:</b> {b.customer_phone}</div>}
     {b.customer_address && <div><b>ที่อยู่:</b> {b.customer_address}</div>}
     {b.customer_note && <div><b>หมายเหตุ:</b> {b.customer_note}</div>}
+
+{(b.payment_method || b.payment_slip_url) && (
+  <div className="mt-2 rounded-lg bg-amber-50 p-3 text-xs">
+    <div><b>ชำระเงิน:</b> {b.payment_method === 'transfer' ? 'โอน' : 'เก็บปลายทาง'}</div>
+    {b.payment_slip_url && (
+      <div className="mt-1">
+        <a href={b.payment_slip_url} target="_blank" className="text-blue-600 underline">ดูสลิป</a>
+      </div>
+    )}
+  </div>
+)}
+
+
   </div>
 )}
 
@@ -1551,20 +1577,20 @@ export default function App() {
       `}</style>
       <div className="min-h-screen pb-16 text-gray-800">
 
-        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur border-b">
+        <header className="sticky top-0 z-40 bg-green-50/95 backdrop-blur border-b border-green-200">
           <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="text-xl font-extrabold">St8ck</div>
             <div className="flex items-center gap-4 text-sm">
 
 <button
   onClick={() => setTab(98)}
-  className={tab===98 ? "font-semibold text-blue-700" : "text-gray-500 hover:text-blue-700"}
+  className={tab===98 ? "font-semibold text-green-800" : "text-slate-500 hover:text-green-700"}
 >
   ร้านค้า
 </button>
  <button
    onClick={() => setTab(99)}
-   className={tab===99 ? "font-semibold text-blue-700" : "text-gray-500 hover:text-blue-700"}
+   className={tab===99 ? "font-semibold text-green-800" : "text-slate-500 hover:text-green-700"}
  >
    ค่าขนส่ง
  </button>
@@ -1574,7 +1600,7 @@ export default function App() {
                 <button
                   key={index}
                   onClick={() => setTab(mainTabLabels.length + index)}
-                  className={tab === mainTabLabels.length + index ? "font-semibold text-blue-700" : "text-gray-500 hover:text-blue-700"}
+                  className={tab === mainTabLabels.length + index ? "font-semibold text-green-800" : "text-slate-500 hover:text-green-700"}
                 >
                   {label}
                 </button>

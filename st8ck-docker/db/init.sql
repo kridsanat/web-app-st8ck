@@ -108,6 +108,20 @@ CREATE TABLE IF NOT EXISTS bills (
   shipping_fee       NUMERIC(12,2) NOT NULL DEFAULT 0,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- payment fields
+ALTER TABLE bills
+  ADD COLUMN IF NOT EXISTS payment_method   TEXT NOT NULL DEFAULT 'cod'
+    CHECK (payment_method IN ('cod','transfer')),
+  ADD COLUMN IF NOT EXISTS payment_slip_url TEXT;
+
+-- stock tracking / sale link
+ALTER TABLE bills
+  ADD COLUMN IF NOT EXISTS stock_moved BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS sale_id INTEGER REFERENCES sales(id);
+
+-- shipping display name (server ใส่ค่า shipping_name อยู่แล้ว)
+ALTER TABLE bills
+  ADD COLUMN IF NOT EXISTS shipping_name TEXT;
 
 CREATE TABLE IF NOT EXISTS bill_items (
   id         SERIAL PRIMARY KEY,
@@ -145,6 +159,7 @@ CREATE TABLE IF NOT EXISTS shop(
   shipping_note  TEXT,
   logo_url       TEXT,
   banner_url     TEXT,
+  banner_link    TEXT,  -- ✅ ใส่ไว้ใน schema ตั้งแต่แรก
   payment_qr_url TEXT,
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -180,3 +195,35 @@ VALUES
   ('SKU-1002','แก้วเยติ 20oz','ใบ',250,180,10,NULL),
   ('SKU-1003','เสื้อยืด St8ck','ตัว',199,120,8,NULL)
 ON CONFLICT DO NOTHING;
+
+-- 1) ปรับ FK ของ bills.sale_id ให้ ON DELETE SET NULL
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE table_name='bills' AND constraint_type='FOREIGN KEY' AND constraint_name='bills_sale_id_fkey'
+  ) THEN
+    ALTER TABLE bills DROP CONSTRAINT bills_sale_id_fkey;
+  END IF;
+END$$;
+
+ALTER TABLE bills
+  ADD CONSTRAINT bills_sale_id_fkey
+  FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE SET NULL;
+
+-- 2) Trigger ลบรายงานขายเมื่อบิลถูกยกเลิก
+CREATE OR REPLACE FUNCTION fn_cleanup_sales_when_bill_cancelled()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status = 'cancelled' AND OLD.status <> 'cancelled' AND OLD.sale_id IS NOT NULL THEN
+    DELETE FROM sales WHERE id = OLD.sale_id; -- sale_items จะโดนลบตามเพราะ ON DELETE CASCADE
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_cleanup_sales_when_bill_cancelled ON bills;
+CREATE TRIGGER trg_cleanup_sales_when_bill_cancelled
+AFTER UPDATE OF status ON bills
+FOR EACH ROW
+EXECUTE FUNCTION fn_cleanup_sales_when_bill_cancelled();

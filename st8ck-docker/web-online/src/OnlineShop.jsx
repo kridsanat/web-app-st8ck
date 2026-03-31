@@ -160,19 +160,32 @@ function ShopHero() {
   const logo = normalizeImage(shop.logo_url);
   const banner = normalizeImage(shop.banner_url);
   const paymentqr = normalizeImage(shop.payment_qr_url);
-
+// เติมโปรโตคอลอัตโนมัติถ้าผู้ใช้กรอกโดเมนเฉย ๆ
+const raw = (shop.banner_link || '').trim();
+const href = raw ? (/^https?:\/\//i.test(raw) ? raw : `https://${raw}`) : null;
   return (
     <section className="mx-auto max-w-6xl mb-4">
       {/* แบนเนอร์: แสดงเฉพาะเมื่อมีรูป */}
-      {banner && (
-        <div className="w-full mb-3 overflow-hidden rounded-2xl border bg-gray-50">
+    {banner && (
+      <div className="w-full mb-3 overflow-hidden rounded-2xl border bg-gray-50">
+        {href ? (
+          <a href={href} target="_blank" rel="noopener noreferrer">
+            <img
+              src={banner}
+              alt=""
+              className="w-full object-cover"
+              onError={(e)=>{ e.currentTarget.remove(); }}
+            />
+          </a>
+        ) : (
           <img
             src={banner}
             alt=""
-            className="w-full h-full md:h-full object-cover"
+            className="w-full object-cover"
             onError={(e)=>{ e.currentTarget.remove(); }}
           />
-        </div>
+        )}
+      </div>
       )}
 
       {/* แถวข้อมูลร้าน */}
@@ -470,7 +483,7 @@ function CartDrawer({
             className="rounded-lg border px-2 py-1 text-sm hover:bg-gray-50"
             onClick={onClose}
           >
-            ปิด
+          เลือกสินค้าเพิ่ม
           </button>
         </div>
         <div className="flex h-[calc(100%-60px)] flex-col">
@@ -647,37 +660,52 @@ function CartDrawer({
   );
 }
 
-function CheckoutModal({ open, onClose, cart, onSubmitted, shipping }) {
+function CheckoutModal({ open, onClose, cart, onSubmitted, shipping, shop }) {
   const { items, totals, clear } = cart;
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
   const [note, setNote] = useState("");
+
+  const [slipFile, setSlipFile] = useState(null);
+  const [slipPreview, setSlipPreview] = useState(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [ok, setOk] = useState(false);
 
-
   useEffect(() => {
     if (!open) {
-      setOk(false);
-      setError(null);
-      setLoading(false);
-      setName("");
-      setAddress("");
-      setPhone("");
-      setNote("");
+      setOk(false); setError(null); setLoading(false);
+      setName(""); setAddress(""); setPhone(""); setNote("");
+      setSlipFile(null); setSlipPreview(null);
     }
   }, [open]);
 
-  const canSubmit =
-    name.trim() && address.trim() && isValidPhoneTH(phone) && items.length > 0 && !loading;
+  const canSubmit = name.trim() && address.trim() && isValidPhoneTH(phone) && items.length > 0 && !loading;
 
   const submit = async () => {
     setError(null);
     setLoading(true);
     try {
-      await onSubmitted?.({ name, address, phone, note });
+      // อัปโหลดสลิปถ้ามี
+      let slipUrl = null;
+      if (slipFile) {
+        const fd = new FormData();
+        fd.append('file', slipFile);
+        const r = await fetch(`${API}/api/files`, { method: 'POST', body: fd });
+        if (!r.ok) throw new Error('อัปโหลดสลิปไม่สำเร็จ');
+        const j = await r.json();
+        slipUrl = j.url;
+      }
+
+      await onSubmitted?.({
+        name, address, phone, note,
+        payment: {
+          method: slipUrl ? 'transfer' : 'cod',  // ไม่มีสลิป = COD
+          slip_url: slipUrl
+        }
+      });
       setOk(true);
       clear();
     } catch (e) {
@@ -687,29 +715,18 @@ function CheckoutModal({ open, onClose, cart, onSubmitted, shipping }) {
     }
   };
 
+  const qr = normalizeImage(shop?.payment_qr_url);
+  const [showSummary, setShowSummary] = useState(false);
   return (
     <div>
-      <div
-        className={`fixed inset-0 z-50 bg-black/30 transition-opacity ${
-          open ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-        onClick={onClose}
-      />
-      <div
-        className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition ${
-          open ? "" : "pointer-events-none opacity-0"
-        }`}
-      >
+      {/* overlay + modal wrapper ... */}
+      <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition ${open ? "" : "pointer-events-none opacity-0"}`}>
         <div className="w-full max-w-xl rounded-2xl border bg-white shadow-lg">
           <div className="flex items-center justify-between border-b p-4">
             <div className="text-lg font-semibold">ข้อมูลสำหรับจัดส่ง</div>
-            <button
-              className="rounded-lg border px-2 py-1 text-sm hover:bg-gray-50"
-              onClick={onClose}
-            >
-              ปิด
-            </button>
+            <button className="rounded-lg border px-2 py-1 text-sm hover:bg-gray-50" onClick={onClose}>ปิด</button>
           </div>
+
           <div className="p-4 space-y-3">
             {ok ? (
               <div className="rounded-xl bg-green-50 p-3 text-green-800">
@@ -717,71 +734,83 @@ function CheckoutModal({ open, onClose, cart, onSubmitted, shipping }) {
               </div>
             ) : (
               <>
-                <input
-                  className="w-full border rounded-xl p-2"
-                  placeholder="ชื่อ-นามสกุล"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-                <textarea
-                  className="w-full border rounded-xl p-2"
-                  rows={3}
-                  placeholder="ที่อยู่จัดส่ง"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                />
-                <input
-                  className={`w-full border rounded-xl p-2 ${
-                    isValidPhoneTH(phone) ? "" : "ring-1 ring-red-500"
-                  }`}
-                  placeholder="0XXXXXXXXX"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                />
-                <input
-                  className="w-full border rounded-xl p-2"
-                  placeholder="หมายเหตุ (ถ้ามี) เช่น ID: Line, Facebook, etc."
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                />
+                {/* ข้อมูลลูกค้า */}
+                <input className="w-full border rounded-xl p-2" placeholder="ชื่อ-นามสกุล" value={name} onChange={(e)=>setName(e.target.value)} />
+                <textarea className="w-full border rounded-xl p-2" rows={3} placeholder="ที่อยู่จัดส่ง" value={address} onChange={(e)=>setAddress(e.target.value)} />
+                <input className={`w-full border rounded-xl p-2 ${isValidPhoneTH(phone) ? "" : "ring-1 ring-red-500"}`} placeholder="0XXXXXXXXX" value={phone} onChange={(e)=>setPhone(e.target.value.replace(/\D/g,''))} />
+                <input className="w-full border rounded-xl p-2" placeholder="หมายเหตุ (ถ้ามี) เช่น ID: Line, Facebook, etc." value={note} onChange={(e)=>setNote(e.target.value)} />
 
+                {/* ชำระเงิน */}
+                <div className="rounded-xl bg-gray-50 p-3">
+                  <div className="mb-2 font-medium">ชำระเงิน</div>
 
-<div className="rounded-xl bg-gray-50 p-3 text-sm">
-  <div className="mb-2 font-medium">สรุปรายการ ({items.length} รายการ)</div>
-  <div className="space-y-1 max-h-32 overflow-auto pr-1">
-    {items.map((x) => (
-      <div key={x.id} className="flex justify-between gap-2">
-        <div className="truncate">{x.name} × {x.qty}</div>
-        <div>฿{toMoney(x.price * x.qty)}</div>
-      </div>
-    ))}
-  </div>
+                  {qr && (
+                    <div className="mb-2 flex items-center gap-3">
+                      <img src={qr} alt="QR ชำระเงิน" className="h-28 w-28 rounded-lg border object-contain bg-white" />
+                      <div className="text-xs text-gray-600">
+                        สแกน QR เพื่อชำระ แล้วอัปโหลดสลิปด้านล่าง<br/>ถ้าไม่อัปโหลด ระบบจะบันทึกเป็น “เก็บเงินปลายทาง”
+                      </div>
+                    </div>
+                  )}
 
-  <div className="mt-2 flex justify-between">
-    <span>ยอดรวมสินค้า</span>
-    <b>฿{toMoney(totals.subtotal)}</b>
-  </div>
-  <div className="flex justify-between">
-    <span>ค่าจัดส่ง</span>
-    <b>฿{toMoney(shipping?.fee || 0)}</b>
-  </div>
-  <div className="mt-1 flex justify-between text-base">
-    <span>สุทธิ</span>
-    <b>฿{toMoney(totals.subtotal + Number(shipping?.fee || 0))}</b>
-  </div>
-</div>
-
-
-                {error && (
-                  <div className="rounded-xl bg-red-50 p-2 text-red-700">
-                    {error}
+                  <div className="flex items-start gap-3">
+                    <label className="text-sm">
+                      อัปโหลดสลิป
+                      <input
+                        type="file" accept="image/*"
+                        className="mt-1 block w-full text-sm"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0] || null;
+                          setSlipFile(f);
+                          setSlipPreview(f ? URL.createObjectURL(f) : null);
+                        }}
+                      />
+                    </label>
+                    {slipPreview && (
+                      <img src={slipPreview} alt="preview" className="h-24 rounded-lg border object-contain bg-white" />
+                    )}
                   </div>
-                )}
-                <button
-                  disabled={!canSubmit}
-                  onClick={submit}
-                  className="w-full rounded-xl bg-black px-3 py-2 text-white disabled:opacity-50"
-                >
+                </div>
+
+{/* ปุ่ม toggle */}
+<button
+  type="button"
+  onClick={() => setShowSummary(!showSummary)}
+  className="w-full rounded-lg border px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50 mt-2"
+>
+  {showSummary ? "ซ่อนสรุปรายการ" : "ดูสรุปรายการ"}
+</button>
+
+{/* สรุปยอด */}
+{showSummary && (
+  <div className="rounded-xl bg-gray-50 p-3 text-xs mt-2">
+    <div className="mb-2 text-xs">สรุปรายการ ({items.length} รายการ)</div>
+    <div className="space-y-1 max-h-32 overflow-auto pr-1 text-xs">
+      {items.map(x => (
+        <div key={x.id} className="flex justify-between gap-2 text-xs">
+          <div className="truncate text-xs">{x.name} × {x.qty}</div>
+          <div>฿{toMoney(x.price * x.qty)}</div>
+        </div>
+      ))}
+    </div>
+    <div className="mt-2 flex justify-between text-xs">
+      <span>ยอดรวมสินค้า</span>
+      <b>฿{toMoney(totals.subtotal)}</b>
+    </div>
+    <div className="flex justify-between text-xs">
+      <span>ค่าจัดส่ง</span>
+      <b>฿{toMoney(shipping?.fee || 0)}</b>
+    </div>
+    <div className="mt-1 flex justify-between text-xs">
+      <span>สุทธิ</span>
+      <b>฿{toMoney(totals.subtotal + Number(shipping?.fee || 0))}</b>
+    </div>
+  </div>
+)}
+
+                {error && <div className="rounded-xl bg-red-50 p-2 text-red-700">{error}</div>}
+
+                <button disabled={!canSubmit} onClick={submit} className="w-full rounded-xl bg-black px-3 py-2 text-white disabled:opacity-50">
                   {loading ? "กำลังส่งออเดอร์..." : "ยืนยันส่งออเดอร์"}
                 </button>
               </>
@@ -792,6 +821,7 @@ function CheckoutModal({ open, onClose, cart, onSubmitted, shipping }) {
     </div>
   );
 }
+
 
 
 export default function OnlineShop() {
@@ -973,41 +1003,41 @@ const filtered = useMemo(() => {
     } catch {}
   }
 
-  const submitOrder = async (customer) => {
-  const items = cart.items.map((x) => ({
-      product_id: x.id,
-      qty: Number(x.qty || 1),
-      price: Number(x.price),
-    }));
-const payload = {
-  kind: "sale",
-  doc_no: genDoc("WEB"),
-  status: "success",
-  customer,
-  shipping: {
-    method_id: shipping.method_id,
-    region: shipping.region,
-    fee: Number(shipping.fee || 0),
-  },
-  items,
+const submitOrder = async ({ name, address, phone, note, payment }) => {
+  const items = cart.items.map(x => ({
+    product_id: x.id,
+    qty: Number(x.qty || 1),
+    price: Number(x.price),
+  }));
+
+  const payload = {
+    kind: "sale",
+    doc_no: genDoc("WEB"),
+    status: "success",
+    customer: { name, address, phone, note },
+    shipping: {
+      method_id: shipping.method_id,
+      region: shipping.region,
+      fee: Number(shipping.fee || 0),
+    },
+    payment,   // 👈 ส่งไปเซิร์ฟเวอร์
+    items,
+  };
+
+  const resp = await fetch(`${API}/api/bills`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const raw = await resp.text();
+  let data = {};
+  try { data = JSON.parse(raw); } catch {}
+  if (!resp.ok) throw new Error(data?.error || raw || "ส่งออเดอร์ไม่สำเร็จ");
+
+  try { await reloadProducts(); } catch {}
+  return data;
 };
 
-
-    const resp = await fetch(`${API}/api/bills`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const raw = await resp.text();
-    let data = {};
-    try {
-      data = JSON.parse(raw);
-    } catch {}
-    if (!resp.ok) throw new Error(data?.error || raw || "ส่งออเดอร์ไม่สำเร็จ");
-
-    try { await reloadProducts(); } catch {}
-    return data;
-  };
 
   return (
     
@@ -1111,7 +1141,7 @@ const payload = {
   cart={cart}
   onSubmitted={submitOrder}
   shipping={shipping}
-  
+  shop={shop}   // 👈 เพิ่ม
  />
 
     <footer className="bg-gray-50 border-t text-sm text-gray-600">

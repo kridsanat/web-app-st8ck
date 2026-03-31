@@ -14,6 +14,18 @@ app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 app.use(morgan('tiny'));
 
+app.put('/bills/:id/status', async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  await db.query('UPDATE bills SET status = $1 WHERE id = $2', [status, id]);
+
+  if (status === 'cancelled') {
+    await db.query('DELETE FROM sales_report WHERE bill_id = $1', [id]);
+  }
+
+  res.json({ message: 'Bill updated' });
+});
 
 
 // === Shipping Methods ===
@@ -122,28 +134,31 @@ app.put('/api/shop', async (req, res) => {
     const fields = [
       'name','tagline','phone','line_id','facebook',
       'open_hours','address','shipping_note',
-      'logo_url','banner_url','payment_qr_url'
+      'logo_url','banner_url','payment_qr_url',
+      'banner_link' // ✅
     ];
+    const toNull = v => (v === '' ? null : v);
 
     const setParts = [];
     const values = [];
-    fields.forEach((k) => {
-      if (body[k] !== undefined) {
-        values.push(body[k]);
+    for (const k of fields) {
+      if (Object.prototype.hasOwnProperty.call(body, k)) {
+        values.push(toNull(body[k]));
         setParts.push(`${k}=$${values.length}`);
       }
-    });
+    }
 
-    const sql = setParts.length === 0
-      ? 'UPDATE shop SET updated_at=now() WHERE id=1 RETURNING *'
-      : `UPDATE shop SET ${setParts.join(', ')}, updated_at=now() WHERE id=1 RETURNING *`;
+    const sql = setParts.length
+      ? `UPDATE shop SET ${setParts.join(', ')}, updated_at=now() WHERE id=1 RETURNING *`
+      : `UPDATE shop SET updated_at=now() WHERE id=1 RETURNING *`;
 
-    const r = await query(sql, values);                            // < เปลี่ยน pool -> query
+    const r = await query(sql, values);
     res.json(r.rows[0]);
   } catch (e) {
-    res.status(500).send(e.message);
+    res.status(500).json({ error: e.message });
   }
 });
+
 
 // ===== Paths / static =====
 const __filename = fileURLToPath(import.meta.url);
@@ -403,14 +418,18 @@ await query(`ALTER TABLE bills ADD COLUMN IF NOT EXISTS customer_note TEXT`);
 // สร้างบิล + รายการ
 // ควรเหลืออันนี้อันเดียวพอ
 app.post('/api/bills', async (req, res) => {
-  const { kind, doc_no, items = [], status = 'pending', customer = {}, shipping = {} } = req.body || {};
+  const {
+    kind, doc_no, items = [], status = 'success',
+    customer = {}, shipping = {}, payment = {}
+  } = req.body || {};
+
   if (!['sale','purchase'].includes(kind)) return res.status(400).json({ error: 'bad kind' });
   if (!doc_no || !items.length)       return res.status(400).json({ error: 'missing doc_no/items' });
 
   try {
     await query('BEGIN');
 
-    // 1) ดึงวิธีขนส่งและคำนวณค่าขนส่ง (ไม่เชื่อค่าจาก client)
+    // 1) คำนวณค่าขนส่ง (เท่าเดิม)
     let shippingMethodId = null, shippingName = null, shippingRegion = null, shippingFee = 0;
     if (shipping?.method_id && (shipping?.region === 'bkk' || shipping?.region === 'upcountry')) {
       const m = (await query(
@@ -430,64 +449,70 @@ app.post('/api/bills', async (req, res) => {
     const itemsTotal = items.reduce((s, it) => s + Number(it.qty) * Number(it.price), 0);
     const total = itemsTotal + shippingFee;
 
-    // 2) สร้างบิล
+    // 2) วิธีชำระเงิน (ไม่มีสลิป = COD)
+    const payMethod = payment?.method === 'transfer' && payment?.slip_url ? 'transfer' : 'cod';
+    const paySlip   = payMethod === 'transfer' ? (payment?.slip_url || null) : null;
+
+    // 3) สร้างบิล
     const ins = await query(
-      `INSERT INTO bills(doc_no, kind, status, total,
-                         customer_name, customer_address, customer_phone, customer_note,
-                         shipping_method_id, shipping_name, shipping_region, shipping_fee)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      `INSERT INTO bills(
+         doc_no, kind, status, total,
+         customer_name, customer_address, customer_phone, customer_note,
+         shipping_method_id, shipping_name, shipping_region, shipping_fee,
+         payment_method, payment_slip_url
+       )
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        RETURNING *`,
-      [doc_no, kind, status, total,
-       customer.name||null, customer.address||null, customer.phone||null, customer.note||null,
-       shippingMethodId, shippingName, shippingRegion, shippingFee]
+      [ doc_no, kind, status, total,
+        customer.name||null, customer.address||null, customer.phone||null, customer.note||null,
+        shippingMethodId, shippingName, shippingRegion, shippingFee,
+        payMethod, paySlip
+      ]
     );
-
-await query(`
-  ALTER TABLE bills
-  ADD COLUMN IF NOT EXISTS stock_moved BOOLEAN NOT NULL DEFAULT FALSE
-`);
-
     const bill = ins.rows[0];
 
-    // 3) รายการสินค้า
     for (const it of items) {
       await query(
         `INSERT INTO bill_items(bill_id, product_id, qty, price) VALUES ($1,$2,$3,$4)`,
         [bill.id, it.product_id, it.qty, it.price]
       );
     }
-/* ⬇️ เพิ่ม: ถ้าเป็นบิลขายและต้องการตัดสต๊อกทันที */
-if (kind === 'sale' && status === 'success') {
-  // เช็คสต๊อกพอก่อน
-  const ids = items.map(i => i.product_id);
-  const stocks = (await query(
-    `SELECT p.id, COALESCE(v.qty,0) AS stock
-       FROM products p LEFT JOIN v_stock v ON v.product_id=p.id
-      WHERE p.id = ANY($1::int[])`,
-    [ids]
-  )).rows.reduce((m, r) => (m[r.id] = Number(r.stock||0), m), {});
-  for (const it of items) {
-    if (Number(it.qty) > Number(stocks[it.product_id] ?? 0)) {
-      throw Object.assign(new Error('insufficient stock'), { status: 409 });
+    // 4) ถ้าเป็นบิลขายและสถานะ success → ตัดสต๊อกทันที
+    if (kind === 'sale' && status === 'success') {
+      // โหลด stock ปัจจุบัน
+      const ids = items.map(i => i.product_id);
+      const stocks = (await query(
+        `SELECT p.id, COALESCE(v.qty,0) AS stock
+           FROM products p LEFT JOIN v_stock v ON v.product_id=p.id
+          WHERE p.id = ANY($1::int[])`,
+        [ids]
+      )).rows.reduce((m, r) => (m[r.id] = Number(r.stock||0), m), {});
+
+      // ตรวจสอบสต๊อกพอก่อน
+      for (const it of items) {
+        if (Number(it.qty) > Number(stocks[it.product_id] ?? 0)) {
+          throw Object.assign(new Error('insufficient stock'), { status: 409 });
+        }
+      }
+
+      // สร้าง sale + sale_items
+      const sale = (await query(
+        'INSERT INTO sales (doc_no, note) VALUES ($1,$2) RETURNING id',
+        [doc_no, `auto from bill #${bill.id}`]
+      )).rows[0];
+
+      for (const it of items) {
+        await query(
+          'INSERT INTO sale_items (sale_id, product_id, qty, price) VALUES ($1,$2,$3,$4)',
+          [sale.id, it.product_id, it.qty, it.price]
+        );
+      }
+
+      // อัปเดตบิลว่าได้ตัดสต๊อกแล้ว
+      await query('UPDATE bills SET stock_moved=true, sale_id=$1 WHERE id=$2', [sale.id, bill.id]);
     }
-  }
 
-  // สร้างเอกสารขายเพื่อตัดสต๊อก
-  const sale = (await query(
-    'INSERT INTO sales (doc_no, note) VALUES ($1,$2) RETURNING id',
-    [doc_no, `from bill #${bill.id}`]
-  )).rows[0];
 
-  for (const it of items) {
-    await query(
-      'INSERT INTO sale_items (sale_id, product_id, qty, price) VALUES ($1,$2,$3,$4)',
-      [sale.id, it.product_id, it.qty, it.price]
-    );
-  }
-
-  // ทำเครื่องหมายในบิลว่าได้หักสต๊อกแล้ว
-  await query('UPDATE bills SET stock_moved=true WHERE id=$1', [bill.id]);
-}
     await query('COMMIT');
     res.json(bill);
   } catch (e) {
@@ -495,6 +520,8 @@ if (kind === 'sale' && status === 'success') {
     res.status(500).json({ error: e.message });
   }
 });
+
+
 
 
 
@@ -511,128 +538,44 @@ app.patch('/api/bills/:id/status', async (req, res) => {
       // โหลดบิล + ล็อคแถว
       const bill = (await tx.query('SELECT * FROM bills WHERE id=$1 FOR UPDATE', [id])).rows[0];
       if (!bill) throw Object.assign(new Error('not found'), { status: 404 });
-     // --- กรณีเป็นบิลขาย ---
-     if (bill.kind === 'sale') {
-       if (status === 'success' && !bill.stock_moved) {
-         // ตัดสต๊อก: สร้างเอกสารขาย + รายการ
-         const items = (await tx.query(
-           'SELECT product_id, qty, price FROM bill_items WHERE bill_id=$1',
-           [id]
-         )).rows;
 
-         // (ออปชัน) ตรวจสต๊อกก่อน
-         const ids = items.map(i => i.product_id);
-         const stocks = (await tx.query(
-           `SELECT p.id, COALESCE(v.qty,0) AS stock
-              FROM products p LEFT JOIN v_stock v ON v.product_id=p.id
-             WHERE p.id = ANY($1::int[])`,
-           [ids]
-         )).rows.reduce((m, r) => (m[r.id] = Number(r.stock||0), m), {});
-         for (const it of items) {
-           if (Number(it.qty) > Number(stocks[it.product_id] ?? 0)) {
-             throw Object.assign(new Error('insufficient stock'), { status: 409 });
-           }
-         }
+      // --- กรณีเป็นบิลขาย ---
+      if (bill.kind === 'sale') {
+        // (เดิมอยู่แล้ว) กรณีเปลี่ยนเป็น success → ตัดสต๊อกและสร้าง sales
+        if (status === 'success' && !bill.stock_moved) {
+          // ... โค้ดเดิมของคุณ ...
+        }
+        // >>> วางบล็อกนี้ถัดลงมาตรงนี้ <<<
+else if (status === 'cancelled' && bill.stock_moved) {
+  // 1) เคลียร์ลิงก์ก่อน ป้องกัน FK
+  if (bill.sale_id) {
+    await tx.query('UPDATE bills SET sale_id=NULL WHERE id=$1', [id]);
+    await tx.query('DELETE FROM sales WHERE id=$1', [bill.sale_id]); // sale_items ถูกลบตาม
+  }
 
-         const sale = (await tx.query(
-           'INSERT INTO sales (doc_no, note) VALUES ($1,$2) RETURNING id',
-           [bill.doc_no, `from bill #${bill.id}`]
-         )).rows[0];
-         for (const it of items) {
-           await tx.query(
-             'INSERT INTO sale_items (sale_id, product_id, qty, price) VALUES ($1,$2,$3,$4)',
-             [sale.id, it.product_id, it.qty, it.price]
-           );
-         }
-         await tx.query('UPDATE bills SET stock_moved=true, sale_id=$1 WHERE id=$2', [sale.id, id]);
+  // ❌ ลบ “ขั้นตอนคืนสต็อกด้วย purchases/purchase_items” ออกทั้งหมด
+  // (เพราะการลบ sales ก็ทำให้สต็อกกลับมาแล้ว)
 
-       } else if (status !== 'success' && bill.stock_moved) {
-         // คืนสต๊อก: ลบเอกสารขายที่เคยสร้าง (รายงานจะไม่ถูกนับด้วย)
-         let saleId = bill.sale_id;
-         if (!saleId) {
-           // เผื่อเคยสร้างโดยไม่เก็บ sale_id (fallback ผ่าน doc_no)
-           const s = await tx.query('SELECT id FROM sales WHERE doc_no=$1 LIMIT 1', [bill.doc_no]);
-           saleId = s.rows[0]?.id;
-         }
-         if (saleId) {
-           await tx.query('DELETE FROM sale_items WHERE sale_id=$1', [saleId]);
-           await tx.query('DELETE FROM sales WHERE id=$1', [saleId]);
-         }
-         await tx.query('UPDATE bills SET stock_moved=false, sale_id=NULL WHERE id=$1', [id]);
-       }
-     }
+  // 2) mark ว่าไม่ตัดสต็อกแล้ว
+  await tx.query('UPDATE bills SET stock_moved=false WHERE id=$1', [id]);
+}
 
-      // อัพเดตสถานะ
+
+      }
+
+      // อัปเดตสถานะบิล (คงบรรทัดเดิมไว้)
       await tx.query('UPDATE bills SET status=$1 WHERE id=$2', [status, id]);
-
-      // กรณีตัดสต๊อก (บิลขาย → success)
-      if (bill.kind === 'sale' && status === 'success' && !bill.stock_moved) {
-        const items = (await tx.query(
-          'SELECT product_id, qty, price FROM bill_items WHERE bill_id=$1',
-          [id]
-        )).rows;
-
-        // เช็คสต๊อกพอก่อน
-        const ids = items.map(i => i.product_id);
-        const stocks = (await tx.query(
-          `SELECT p.id, COALESCE(v.qty,0) AS stock
-             FROM products p LEFT JOIN v_stock v ON v.product_id=p.id
-            WHERE p.id = ANY($1::int[])`,
-          [ids]
-        )).rows.reduce((m, r) => (m[r.id] = Number(r.stock||0), m), {});
-        for (const it of items) {
-          if (Number(it.qty) > Number(stocks[it.product_id] ?? 0)) {
-            throw Object.assign(new Error('insufficient stock'), { status: 409 });
-          }
-        }
-
-        const sale = (await tx.query(
-          'INSERT INTO sales (doc_no, note) VALUES ($1,$2) RETURNING id',
-          [bill.doc_no, `from bill #${bill.id}`]
-        )).rows[0];
-
-        for (const it of items) {
-          await tx.query(
-            'INSERT INTO sale_items (sale_id, product_id, qty, price) VALUES ($1,$2,$3,$4)',
-            [sale.id, it.product_id, it.qty, it.price]
-          );
-        }
-        await tx.query('UPDATE bills SET stock_moved=true WHERE id=$1', [id]);
-      }
-
-      // ✅ กรณียกเลิก → คืนสต๊อก (บิลขายเคยตัดไปแล้ว)
-      else if (bill.kind === 'sale' && status !== 'success' && bill.stock_moved) {
-        const items = (await tx.query(
-          'SELECT product_id, qty, price FROM bill_items WHERE bill_id=$1',
-          [id]
-        )).rows;
-
-        // สร้างเอกสารเข้าสต๊อกเพื่อ “คืนของ”
-        const rtnDoc = genDoc('R'); // เช่น R-YYYYMMDD-#### (ใช้ฟังก์ชันเดิม)
-        const po = (await tx.query(
-          'INSERT INTO purchases (doc_no, note) VALUES ($1,$2) RETURNING id',
-          [rtnDoc, `return stock from cancelled bill #${bill.id}`]
-        )).rows[0];
-
-        for (const it of items) {
-          await tx.query(
-            'INSERT INTO purchase_items (purchase_id, product_id, qty, price) VALUES ($1,$2,$3,$4)',
-            [po.id, it.product_id, it.qty, it.price]
-          );
-        }
-
-        // ทำเครื่องหมายว่าตอนนี้ “ยังไม่ถูกตัดสต๊อกแล้ว”
-        await tx.query('UPDATE bills SET stock_moved=false WHERE id=$1', [id]);
-      }
     });
 
-    // ตอบกลับสถานะล่าสุด
+    // ตอบกลับสถานะล่าสุด (คงโค้ดเดิม)
     const row = (await query('SELECT * FROM bills WHERE id=$1', [id])).rows[0];
     res.json(row);
   } catch (e) {
     res.status(e.status || 400).json({ error: e.message || 'update failed' });
   }
 });
+
+
 
 
 
@@ -776,22 +719,27 @@ await query(`
   );
 `);
 
+// ===== Shop schema bootstrap (index.js) =====
 await query(`
-CREATE TABLE IF NOT EXISTS shop(
-  id INTEGER PRIMARY KEY DEFAULT 1,
-  name TEXT,
-  tagline TEXT,
-  phone TEXT,
-  line_id TEXT,
-  facebook TEXT,
-  open_hours TEXT,
-  address TEXT,
-  shipping_note TEXT,
-  logo_url TEXT,
-  banner_url TEXT,
-  payment_qr_url TEXT,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);`);
+  CREATE TABLE IF NOT EXISTS shop(
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    name TEXT,
+    tagline TEXT,
+    phone TEXT,
+    line_id TEXT,
+    facebook TEXT,
+    open_hours TEXT,
+    address TEXT,
+    shipping_note TEXT,
+    logo_url TEXT,
+    banner_url TEXT,
+    payment_qr_url TEXT,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+`);
+await query(`INSERT INTO shop(id) VALUES (1) ON CONFLICT (id) DO NOTHING;`);
+await query(`ALTER TABLE shop ADD COLUMN IF NOT EXISTS banner_link TEXT;`); // ✅ สำคัญ
+
 await query(`INSERT INTO shop(id) VALUES (1) ON CONFLICT (id) DO NOTHING;`);
 // === Bills columns (ensure exist) ===
 await query(`
@@ -801,4 +749,11 @@ await query(`
 await query(`
   ALTER TABLE bills
   ADD COLUMN IF NOT EXISTS sale_id INTEGER REFERENCES sales(id)
+`);
+// === Bills API (ต่อจากของเดิม) ===
+await query(`
+  ALTER TABLE bills
+  ADD COLUMN IF NOT EXISTS payment_method TEXT NOT NULL DEFAULT 'cod'
+    CHECK (payment_method IN ('cod','transfer')),
+  ADD COLUMN IF NOT EXISTS payment_slip_url TEXT
 `);
