@@ -1455,14 +1455,29 @@ function BillsPage() {
       <div className="text-xs text-gray-500">ไม่มีรายการ</div>
     ) : (
       <div className="overflow-x-auto">
-        {(b.customer_name || b.customer_phone || b.customer_address || b.customer_note) && (
-          <div className="mt-2 rounded-lg bg-blue-50 p-3 text-xs">
-            {b.customer_name && <div><b>ลูกค้า:</b> {b.customer_name}</div>}
-            {b.customer_phone && <div><b>โทร:</b> {b.customer_phone}</div>}
-            {b.customer_address && <div><b>ที่อยู่:</b> {b.customer_address}</div>}
-            {b.customer_note && <div><b>หมายเหตุ:</b> {b.customer_note}</div>}
+
+
+{(b.customer_name || b.customer_phone || b.customer_address || b.customer_note) && (
+  <div className="mt-2 rounded-lg bg-blue-50 p-3 text-xs">
+    {b.customer_name && <div><b>ลูกค้า:</b> {b.customer_name}</div>}
+    {b.customer_phone && <div><b>โทร:</b> {b.customer_phone}</div>}
+    {b.customer_address && <div><b>ที่อยู่:</b> {b.customer_address}</div>}
+    {b.customer_note && <div><b>หมายเหตุ:</b> {b.customer_note}</div>}
+
+    {(b.payment_method || b.payment_slip_url) && (
+      <div className="mt-2 rounded-lg bg-amber-50 p-3 text-xs">
+        <div><b>ชำระเงิน:</b> {b.payment_method === 'transfer' ? 'โอน' : 'เก็บปลายทาง'}</div>
+        {b.payment_slip_url && (
+          <div className="mt-1">
+            <a href={b.payment_slip_url} target="_blank" rel="noreferrer" className="text-blue-600 underline">
+              ดูสลิป
+            </a>
           </div>
         )}
+      </div>
+    )}
+  </div>
+)}
 
         <table className="w-full text-sm">
           <thead>
