@@ -1449,11 +1449,77 @@ function BillsPage() {
                 </div>
               </div>
 
-              {open && (
-                <div className="mt-3 rounded-lg bg-gray-50 p-3">
-                  {/* ของเดิมด้านในใช้ต่อได้ */}
-                </div>
-              )}
+{open && (
+  <div className="mt-3 rounded-lg bg-gray-50 p-3">
+    {items.length === 0 ? (
+      <div className="text-xs text-gray-500">ไม่มีรายการ</div>
+    ) : (
+      <div className="overflow-x-auto">
+        {(b.customer_name || b.customer_phone || b.customer_address || b.customer_note) && (
+          <div className="mt-2 rounded-lg bg-blue-50 p-3 text-xs">
+            {b.customer_name && <div><b>ลูกค้า:</b> {b.customer_name}</div>}
+            {b.customer_phone && <div><b>โทร:</b> {b.customer_phone}</div>}
+            {b.customer_address && <div><b>ที่อยู่:</b> {b.customer_address}</div>}
+            {b.customer_note && <div><b>หมายเหตุ:</b> {b.customer_note}</div>}
+          </div>
+        )}
+
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-xs text-gray-500">
+              <th className="text-xs py-1">สินค้า</th>
+              <th className="text-xs py-1 w-24 text-right">จำนวน</th>
+              <th className="text-xs py-1 w-28 text-right">ราคา</th>
+              <th className="text-xs py-1 w-28 text-right">เป็นเงิน</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((it, i) => (
+              <tr key={i} className="text-xs border-t">
+                <td className="text-xs py-1">
+                  <div className="font-xs">{it.name}</div>
+                  <div className="text-[11px] text-gray-500">{it.code} • {it.unit}</div>
+                </td>
+                <td className="text-xs py-1 text-right">{fmt(it.qty)}</td>
+                <td className="text-xs py-1 text-right">{fmt(it.price)}</td>
+                <td className="text-xs py-1 text-right">{fmt(Number(it.qty) * Number(it.price))}</td>
+              </tr>
+            ))}
+
+            {Number(b.shipping_fee || 0) > 0 && (
+              <tr className="text-xs border-t">
+                <td className="py-1 text-right" colSpan={3}>
+                  ค่าจัดส่ง
+                  {b.shipping_name
+                    ? ` (${b.shipping_name}${b.shipping_region === 'bkk' ? ' • กทม.' : b.shipping_region === 'upcountry' ? ' • ตจว.' : ''})`
+                    : ''}
+                </td>
+                <td className="py-1 text-right">{fmt(b.shipping_fee)}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        <div className="mt-3 flex justify-end">
+          <div className="text-right space-y-0.5">
+            <div className="text-xs text-gray-500">ค่าสินค้า</div>
+            <div className="font-medium">{fmt(subtotal)} บาท</div>
+
+            {Number(b.shipping_fee || 0) > 0 && (
+              <>
+                <div className="text-xs text-gray-500">ค่าจัดส่ง</div>
+                <div className="font-medium">+ {fmt(b.shipping_fee)} บาท</div>
+              </>
+            )}
+
+            <div className="text-xs text-gray-500">รวมทั้งสิ้น</div>
+            <div className="text-lg font-bold">{fmt(b.total)} บาท</div>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+)}
             </div>
           );
         })}
