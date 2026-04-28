@@ -1,31 +1,28 @@
 import { Client } from "pg";
 import http from "node:http";
+import { z } from "zod";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 const port = Number(process.env.MCP_PORT || 3333);
 
-// connect DB
 const db = new Client({
   connectionString: process.env.DATABASE_URL
 });
-
 await db.connect();
 
-// simple API (mock MCP style)
-const server = http.createServer(async (req, res) => {
-  if (req.url === "/health") {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({
-      status: "ok",
-      service: "st8ck-mcp",
-      db: "connected"
-    }));
-    return;
-  }
+const mcpServer = new McpServer({
+  name: "st8ck-stock-mcp",
+  version: "1.0.0"
+});
 
-  // 🔍 search products
-  if (req.url?.startsWith("/search")) {
-    const keyword = new URL(req.url, "http://localhost").searchParams.get("q") || "";
-
+mcpServer.tool(
+  "search_products",
+  "ค้นหาสินค้าจากชื่อสินค้า หรือรหัส SKU พร้อมจำนวนคงเหลือ",
+  {
+    q: z.string().describe("คำค้นหา เช่น SKU, กาแฟ, เสื้อ")
+  },
+  async ({ q }) => {
     const result = await db.query(
       `
       SELECT
@@ -43,66 +40,124 @@ const server = http.createServer(async (req, res) => {
       ORDER BY p.name
       LIMIT 20
       `,
-      [`%${keyword}%`]
+      [`%${q}%`]
     );
 
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(result.rows));
-    return;
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(result.rows, null, 2)
+        }
+      ]
+    };
   }
+);
 
-  res.writeHead(404);
-  res.end("Not Found");
+mcpServer.tool(
+  "get_product_stock",
+  "ดูข้อมูลสินค้าและจำนวน stock คงเหลือตามรหัสสินค้า",
+  {
+    code: z.string().describe("รหัสสินค้า เช่น SKU-1001")
+  },
+  async ({ code }) => {
+    const result = await db.query(
+      `
+      SELECT
+        p.id,
+        p.code,
+        p.name,
+        p.unit,
+        p.sell_price,
+        p.min_qty_alert,
+        COALESCE(v.qty,0) AS stock_qty
+      FROM products p
+      LEFT JOIN v_stock v ON v.product_id = p.id
+      WHERE lower(p.code) = lower($1)
+      LIMIT 1
+      `,
+      [code]
+    );
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(result.rows[0] || null, null, 2)
+        }
+      ]
+    };
+  }
+);
+
+mcpServer.tool(
+  "get_low_stock_items",
+  "ดูรายการสินค้าที่จำนวนคงเหลือต่ำกว่าหรือเท่ากับขั้นต่ำแจ้งเตือน",
+  {},
+  async () => {
+    const result = await db.query(`
+      SELECT
+        p.code,
+        p.name,
+        p.min_qty_alert,
+        COALESCE(v.qty,0) AS stock_qty
+      FROM products p
+      LEFT JOIN v_stock v ON v.product_id = p.id
+      WHERE p.min_qty_alert > 0
+        AND COALESCE(v.qty,0) <= p.min_qty_alert
+      ORDER BY stock_qty ASC
+    `);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(result.rows, null, 2)
+        }
+      ]
+    };
+  }
+);
+
+const server = http.createServer(async (req, res) => {
+  try {
+    if (req.url === "/health") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        status: "ok",
+        service: "st8ck-stock-mcp",
+        db: "connected"
+      }));
+      return;
+    }
+
+    if (!req.url?.startsWith("/mcp")) {
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Not Found" }));
+      return;
+    }
+
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined
+    });
+
+    res.on("close", () => {
+      transport.close();
+    });
+
+    await mcpServer.connect(transport);
+    await transport.handleRequest(req, res);
+  } catch (error) {
+    console.error(error);
+    if (!res.headersSent) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+    }
+    res.end(JSON.stringify({
+      error: "Internal Server Error"
+    }));
+  }
 });
 
 server.listen(port, "0.0.0.0", () => {
   console.log(`st8ck MCP server running on port ${port}`);
 });
-
-
-// 📦 get product by code
-if (req.url?.startsWith("/product")) {
-  const code = new URL(req.url, "http://localhost").searchParams.get("code");
-
-  const result = await db.query(
-    `
-    SELECT
-      p.id,
-      p.code,
-      p.name,
-      p.unit,
-      p.sell_price,
-      p.min_qty_alert,
-      COALESCE(v.qty,0) AS stock_qty
-    FROM products p
-    LEFT JOIN v_stock v ON v.product_id = p.id
-    WHERE lower(p.code) = lower($1)
-    LIMIT 1
-    `,
-    [code]
-  );
-
-  res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify(result.rows[0] || null));
-  return;
-}
-
-// ⚠️ low stock
-if (req.url === "/low-stock") {
-  const result = await db.query(`
-    SELECT
-      p.code,
-      p.name,
-      p.min_qty_alert,
-      COALESCE(v.qty,0) AS stock_qty
-    FROM products p
-    LEFT JOIN v_stock v ON v.product_id = p.id
-    WHERE p.min_qty_alert > 0
-      AND COALESCE(v.qty,0) <= p.min_qty_alert
-    ORDER BY stock_qty ASC
-  `);
-
-  res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify(result.rows));
-  return;
-}
