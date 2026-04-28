@@ -1,0 +1,16 @@
+# Nginx Proxy Manager runtime/secrets
+st8ck-docker/nginx/data/
+st8ck-docker/nginx/letsencrypt/
+
+# env / backup
+*.env
+.env*
+*.env.*
+*.server-backup
+
+# logs/db/secrets
+*.log
+*.log.*
+*.sqlite
+keys.json
+*.pem
