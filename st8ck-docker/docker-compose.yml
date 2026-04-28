@@ -35,6 +35,20 @@ services:
     restart: unless-stopped
     ports:
       - "8081:80"
+  mcp:
+    build:
+      context: ./mcp
+      dockerfile: Dockerfile
+    container_name: st8ck_mcp
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgres://st8ck:st8ckpass@db:5432/st8ck
+      NODE_ENV: production
+      MCP_PORT: 3333
+    ports:
+      - "3333:3333"
 
 volumes:
   db_data:
