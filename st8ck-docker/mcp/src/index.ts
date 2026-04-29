@@ -4,6 +4,20 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
+const server = http.createServer(async (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Accept, Authorization, mcp-session-id, MCP-Session-Id, mcp-protocol-version"
+  );
+  res.setHeader("Access-Control-Expose-Headers", "mcp-session-id, MCP-Session-Id");
+
+  if (req.method === "OPTIONS") {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
 const port = Number(process.env.MCP_PORT || 3333);
 
 const db = new Client({
