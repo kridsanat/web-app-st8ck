@@ -460,11 +460,7 @@ const [lbIndex, setLbIndex] = React.useState(0);
           </div>
         )}
 
-{debugInfo && (
-  <pre className="mb-4 overflow-auto rounded-xl bg-yellow-50 p-3 text-xs text-gray-700 border">
-    {JSON.stringify(debugInfo, null, 2)}
-  </pre>
-)}        
+    
 
       </div>
 
