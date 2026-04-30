@@ -660,6 +660,115 @@ function CartDrawer({
   );
 }
 
+// ===== Review helpers / sections =====
+
+// แสดงดาวจากคะแนน 1-5
+function ReviewStars({ rating = 0 }) {
+  const n = Math.max(0, Math.min(5, Number(rating || 0)));
+  return <div className="text-sm text-amber-500">{'★'.repeat(n)}</div>;
+}
+
+// การ์ดวิดีโอรีวิว
+function VideoReviewSection({ items = [] }) {
+  // ถ้าไม่มีข้อมูล ไม่ต้องแสดง section นี้
+  if (!items.length) return null;
+
+  return (
+    <section className="mt-10">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900">วิดีโอแนะนำสินค้า</h2>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((item) => (
+          <a
+            key={item.id}
+            href={item.video_url || '#'}
+            target="_blank"
+            rel="noreferrer"
+            className="overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:shadow-md"
+          >
+            {/* ถ้ามีภาพปก ใช้ภาพปก ถ้าไม่มีแสดงกล่อง placeholder */}
+            {item.thumbnail_url ? (
+              <img
+                src={normalizeImage(item.thumbnail_url)}
+                alt={item.title || 'video review'}
+                className="h-[320px] w-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            ) : (
+              <div className="grid h-[320px] w-full place-items-center bg-gray-100 text-gray-400">
+                ไม่มีภาพปก
+              </div>
+            )}
+
+            <div className="p-3">
+              <div className="line-clamp-2 text-sm font-medium text-gray-800">
+                {item.title || 'วิดีโอรีวิว'}
+              </div>
+              <div className="mt-1 text-xs text-gray-500">
+                {item.platform || 'video'}
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// การ์ดรีวิวลูกค้า
+function CustomerReviewSection({ items = [] }) {
+  // ถ้าไม่มีข้อมูล ไม่ต้องแสดง section นี้
+  if (!items.length) return null;
+
+  return (
+    <section className="mt-10">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900">รีวิวจากลูกค้า</h2>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((item) => (
+          <div key={item.id} className="rounded-2xl border bg-white p-4 shadow-sm">
+            <div className="font-medium text-gray-900">
+              {item.customer_name_mask || item.customer_name || 'ลูกค้า'}
+            </div>
+
+            <div className="mt-1">
+              <ReviewStars rating={item.rating} />
+            </div>
+
+            {item.order_text && (
+              <div className="mt-2 text-xs text-gray-500">{item.order_text}</div>
+            )}
+
+            {item.comment && (
+              <div className="mt-2 text-sm text-gray-700">{item.comment}</div>
+            )}
+
+            {item.image_url && (
+              <img
+                src={normalizeImage(item.image_url)}
+                alt="review"
+                className="mt-3 h-24 w-24 rounded-lg border object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+
+
+
 function CheckoutModal({ open, onClose, cart, onSubmitted, shipping, shop }) {
   const { items, totals, clear } = cart;
   const [name, setName] = useState("");
@@ -838,6 +947,15 @@ export default function OnlineShop() {
 const [shipMethods, setShipMethods] = useState([]);
 const [shipping, setShipping] = useState({ method_id: null, region: 'bkk', fee: 0 });
 
+const [products, setProducts] = useState([]);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState(null);
+const [shop, setShop] = useState(null);
+
+// รีวิวแยก 2 กลุ่ม: วิดีโอ / รีวิวลูกค้า
+const [videoReviews, setVideoReviews] = useState([]);
+const [customerReviews, setCustomerReviews] = useState([]);
+
 useEffect(() => {
   (async () => {
     try {
@@ -933,6 +1051,42 @@ useEffect(() => {
   })();
   return () => { alive = false; };
 }, []);
+
+
+
+
+// โหลดรีวิวจาก API
+useEffect(() => {
+  let alive = true;
+
+  (async () => {
+    try {
+      const [videoRes, reviewRes] = await Promise.all([
+        fetch(`${API}/api/reviews?type=video`),
+        fetch(`${API}/api/reviews?type=review`)
+      ]);
+
+      const videoJSON = videoRes.ok ? await videoRes.json() : [];
+      const reviewJSON = reviewRes.ok ? await reviewRes.json() : [];
+
+      if (!alive) return;
+
+      setVideoReviews(Array.isArray(videoJSON) ? videoJSON : []);
+      setCustomerReviews(Array.isArray(reviewJSON) ? reviewJSON : []);
+    } catch (e) {
+      console.error('load reviews failed:', e);
+      if (!alive) return;
+      setVideoReviews([]);
+      setCustomerReviews([]);
+    }
+  })();
+
+  return () => {
+    alive = false;
+  };
+}, []);
+
+
 
 
 // ให้ in-stock มาก่อน, ไม่ทราบจำนวนอยู่กลาง, out-of-stock ไปท้ายสุด
@@ -1115,13 +1269,22 @@ const submitOrder = async ({ name, address, phone, note, payment }) => {
         {error && <div className="text-red-600">{error}</div>}
 
         {!loading && !error && (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filtered.map((p) => (
-              <ProductCard key={p.id} p={p} onAdd={add} />
-            ))}
-          </div>
-        )}
-      </main>
+  <>
+    {/* รายการสินค้า */}
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+      {filtered.map((p) => (
+        <ProductCard key={p.id} p={p} onAdd={add} />
+      ))}
+    </div>
+
+    {/* วิดีโอรีวิว */}
+    <VideoReviewSection items={videoReviews} />
+
+    {/* รีวิวจากลูกค้า */}
+    <CustomerReviewSection items={customerReviews} />
+  </>
+)}
+</main>
 
 <CartDrawer
   open={openCart}
@@ -1144,6 +1307,9 @@ const submitOrder = async ({ name, address, phone, note, payment }) => {
   shop={shop}   // 👈 เพิ่ม
  />
 
+
+
+
     <footer className="bg-gray-50 border-t text-sm text-gray-600">
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row justify-between items-center gap-2">
@@ -1158,3 +1324,5 @@ const submitOrder = async ({ name, address, phone, note, payment }) => {
     </div>
   );
 }
+
+
