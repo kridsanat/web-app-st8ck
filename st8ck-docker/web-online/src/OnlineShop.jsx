@@ -750,11 +750,11 @@ function CustomerReviewSection({ items = [] }) {
         <h2 className="text-xl font-semibold text-gray-900">รีวิวจากลูกค้า</h2>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         {items.map((item) => (
           <div
             key={item.id}
-            className="mx-auto w-full max-w-[180px] overflow-hidden rounded-2xl border bg-white shadow-sm"
+            className="w-full overflow-hidden rounded-2xl border bg-white shadow-sm"
           >
             {item.image_url ? (
               <img
@@ -772,23 +772,23 @@ function CustomerReviewSection({ items = [] }) {
               </div>
             )}
 
-            <div className="p-3">
-              <div className="text-sm font-medium text-gray-900">
+            <div className="p-2">
+              <div className="text-xs font-medium text-gray-900">
                 {item.customer_name_mask || item.customer_name || "ลูกค้า"}
               </div>
 
-              <div className="mt-1 text-xs text-amber-500">
+              <div className="mt-1 text-[10px] text-amber-500">
                 {"★".repeat(Number(item.rating || 0))}
               </div>
 
               {item.order_text && (
-                <div className="mt-2 text-[11px] text-gray-500">
+                <div className="mt-1 text-[10px] text-gray-500 line-clamp-1">
                   {item.order_text}
                 </div>
               )}
 
               {item.comment && (
-                <div className="mt-2 text-xs text-gray-700 line-clamp-2">
+                <div className="mt-1 text-[10px] text-gray-700 line-clamp-2">
                   {item.comment}
                 </div>
               )}
