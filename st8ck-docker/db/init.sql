@@ -227,3 +227,33 @@ CREATE TRIGGER trg_cleanup_sales_when_bill_cancelled
 AFTER UPDATE OF status ON bills
 FOR EACH ROW
 EXECUTE FUNCTION fn_cleanup_sales_when_bill_cancelled();
+
+-- =======================
+-- shop_reviews
+-- =======================
+CREATE TABLE IF NOT EXISTS shop_reviews (
+  id                 SERIAL PRIMARY KEY,
+  type               TEXT NOT NULL CHECK (type IN ('video','review')),
+  title              TEXT,
+  customer_name      TEXT,
+  customer_name_mask TEXT,
+  rating             INTEGER CHECK (rating BETWEEN 1 AND 5),
+  order_text         TEXT,
+  comment            TEXT,
+  image_url          TEXT,
+  video_url          TEXT,
+  thumbnail_url      TEXT,
+  product_id         INTEGER REFERENCES products(id) ON DELETE SET NULL,
+  platform           TEXT,
+  is_active          BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order         INTEGER NOT NULL DEFAULT 0,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_shop_reviews_type_active_sort
+  ON shop_reviews(type, is_active, sort_order, id);
+
+CREATE INDEX IF NOT EXISTS idx_shop_reviews_product_id
+  ON shop_reviews(product_id);
+
