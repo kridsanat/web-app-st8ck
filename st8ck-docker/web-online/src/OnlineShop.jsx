@@ -733,62 +733,50 @@ function VideoReviewSection({ items = [] }) {
 function CustomerReviewSection({ items = [] }) {
   if (!items.length) return null;
 
-  const [lbOpen, setLbOpen] = React.useState(false);
-  const [lbImages, setLbImages] = React.useState([]);
-  const [lbIndex, setLbIndex] = React.useState(0);
-
-  const openLightbox = (imageUrl) => {
-    if (!imageUrl) return;
-    setLbImages([imageUrl]);   // รีวิวตอนนี้ 1 การ์ด = 1 รูป
-    setLbIndex(0);
-    setLbOpen(true);
-  };
-
   return (
     <section className="mt-10">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">รีวิวจากลูกค้า</h2>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         {items.map((item) => (
           <div
             key={item.id}
-            className="overflow-hidden rounded-2xl border bg-white shadow-sm"
+            className="mx-auto w-full max-w-[180px] overflow-hidden rounded-2xl border bg-white shadow-sm"
           >
             {item.image_url ? (
               <img
                 src={normalizeImage(item.image_url)}
-                alt={item.customer_name_mask || 'review'}
-                className="h-[160px] w-full cursor-zoom-in object-cover"
-                onClick={() => openLightbox(item.image_url)}
+                alt={item.customer_name_mask || "review"}
+                className="aspect-[3/4] w-full object-cover cursor-zoom-in"
                 onError={(e) => {
-                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.style.display = "none";
                 }}
               />
             ) : (
-              <div className="grid h-[160px] w-full place-items-center bg-gray-100 text-gray-400">
+              <div className="grid aspect-[3/4] w-full place-items-center bg-gray-100 text-gray-400">
                 ไม่มีรูปรีวิว
               </div>
             )}
 
             <div className="p-3">
-              <div className="font-medium text-gray-900">
-                {item.customer_name_mask || item.customer_name || 'ลูกค้า'}
+              <div className="text-sm font-medium text-gray-900">
+                {item.customer_name_mask || item.customer_name || "ลูกค้า"}
               </div>
 
-              <div className="mt-1 text-sm text-amber-500">
-                {'★'.repeat(Number(item.rating || 0))}
+              <div className="mt-1 text-xs text-amber-500">
+                {"★".repeat(Number(item.rating || 0))}
               </div>
 
               {item.order_text && (
-                <div className="mt-2 text-xs text-gray-500">
+                <div className="mt-2 text-[11px] text-gray-500">
                   {item.order_text}
                 </div>
               )}
 
               {item.comment && (
-                <div className="mt-2 text-sm text-gray-700">
+                <div className="mt-2 text-xs text-gray-700 line-clamp-2">
                   {item.comment}
                 </div>
               )}
@@ -796,14 +784,6 @@ function CustomerReviewSection({ items = [] }) {
           </div>
         ))}
       </div>
-
-      {lbOpen && (
-        <ImageLightbox
-          images={lbImages}
-          index={lbIndex}
-          onClose={() => setLbOpen(false)}
-        />
-      )}
     </section>
   );
 }
