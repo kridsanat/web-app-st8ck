@@ -720,8 +720,9 @@ function VideoReviewSection({ items = [] }) {
 }
 
 // การ์ดรีวิวลูกค้า
+// รีวิวลูกค้าแบบเน้นรูป
 function CustomerReviewSection({ items = [] }) {
-  // ถ้าไม่มีข้อมูล ไม่ต้องแสดง section นี้
+  // ถ้าไม่มีข้อมูล ไม่ต้องแสดง
   if (!items.length) return null;
 
   return (
@@ -732,33 +733,48 @@ function CustomerReviewSection({ items = [] }) {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => (
-          <div key={item.id} className="rounded-2xl border bg-white p-4 shadow-sm">
-            <div className="font-medium text-gray-900">
-              {item.customer_name_mask || item.customer_name || 'ลูกค้า'}
-            </div>
-
-            <div className="mt-1">
-              <ReviewStars rating={item.rating} />
-            </div>
-
-            {item.order_text && (
-              <div className="mt-2 text-xs text-gray-500">{item.order_text}</div>
-            )}
-
-            {item.comment && (
-              <div className="mt-2 text-sm text-gray-700">{item.comment}</div>
-            )}
-
-            {item.image_url && (
+          <div
+            key={item.id}
+            className="overflow-hidden rounded-2xl border bg-white shadow-sm"
+          >
+            {/* รูปรีวิว */}
+            {item.image_url ? (
               <img
                 src={normalizeImage(item.image_url)}
-                alt="review"
-                className="mt-3 h-24 w-24 rounded-lg border object-cover"
+                alt={item.customer_name_mask || 'review'}
+                className="h-[320px] w-full object-cover"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
               />
+            ) : (
+              <div className="grid h-[320px] w-full place-items-center bg-gray-100 text-gray-400">
+                ไม่มีรูปรีวิว
+              </div>
             )}
+
+            {/* ข้อมูลรีวิว */}
+            <div className="p-4">
+              <div className="font-medium text-gray-900">
+                {item.customer_name_mask || item.customer_name || 'ลูกค้า'}
+              </div>
+
+              <div className="mt-1 text-sm text-amber-500">
+                {'★'.repeat(Number(item.rating || 0))}
+              </div>
+
+              {item.order_text && (
+                <div className="mt-2 text-xs text-gray-500">
+                  {item.order_text}
+                </div>
+              )}
+
+              {item.comment && (
+                <div className="mt-2 text-sm text-gray-700">
+                  {item.comment}
+                </div>
+              )}
+            </div>
           </div>
         ))}
       </div>
