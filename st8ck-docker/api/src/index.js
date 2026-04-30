@@ -698,51 +698,174 @@ app.get('/api/bills/:id', async (req, res) => {
 
 // ตัวอย่าง: ดึงรีวิวทั้งหมด (รองรับ ?type=... และ ?active=1)
 
-app.get('/api/reviews', async (req, res) => {
+// สร้างรีวิว / วิดีโอรีวิว
+app.post('/api/reviews', async (req, res) => {
   try {
-    const { type, active = '1' } = req.query;
+    const {
+      type,
+      title = null,
+      customer_name = null,
+      customer_name_mask = null,
+      rating = null,
+      order_text = null,
+      comment = null,
+      image_url = null,
+      video_url = null,
+      thumbnail_url = null,
+      product_id = null,
+      platform = null,
+      is_active = true,
+      sort_order = 0,
+    } = req.body || {};
 
-    const where = [];
-    const params = [];
-
-    if (type) {
-      params.push(type);
-      where.push(`type = $${params.length}`);
-    }
-
-    if (active === '1') {
-      where.push(`is_active IS TRUE`);
+    if (!['video', 'review'].includes(String(type || ''))) {
+      return res.status(400).json({ error: 'invalid type' });
     }
 
     const sql = `
-      SELECT
-        id,
-        type,
-        title,
-        customer_name,
-        customer_name_mask,
-        rating,
-        order_text,
-        comment,
-        image_url,
-        video_url,
-        thumbnail_url,
-        product_id,
-        platform,
-        is_active,
-        sort_order,
-        created_at,
-        updated_at
-      FROM shop_reviews
-      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-      ORDER BY sort_order ASC, id DESC
+      INSERT INTO shop_reviews (
+        type, title, customer_name, customer_name_mask, rating, order_text, comment,
+        image_url, video_url, thumbnail_url, product_id, platform, is_active, sort_order
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+      RETURNING *
     `;
 
+    const params = [
+      type,
+      title,
+      customer_name,
+      customer_name_mask,
+      rating ? Number(rating) : null,
+      order_text,
+      comment,
+      image_url,
+      video_url,
+      thumbnail_url,
+      product_id ? Number(product_id) : null,
+      platform,
+      Boolean(is_active),
+      Number(sort_order || 0),
+    ];
+
     const { rows } = await query(sql, params);
-    res.json(rows);
+    res.status(201).json(rows[0]);
   } catch (err) {
-    console.error('GET /api/reviews failed:', err);
-    res.status(500).json({ error: 'failed to load reviews' });
+    console.error('POST /api/reviews failed:', err);
+    res.status(500).json({ error: 'failed to create review' });
+  }
+});
+
+// แก้ไขรีวิว / วิดีโอรีวิว
+app.put('/api/reviews/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id || 0);
+    if (!id) return res.status(400).json({ error: 'invalid id' });
+
+    const {
+      type,
+      title = null,
+      customer_name = null,
+      customer_name_mask = null,
+      rating = null,
+      order_text = null,
+      comment = null,
+      image_url = null,
+      video_url = null,
+      thumbnail_url = null,
+      product_id = null,
+      platform = null,
+      is_active = true,
+      sort_order = 0,
+    } = req.body || {};
+
+    if (!['video', 'review'].includes(String(type || ''))) {
+      return res.status(400).json({ error: 'invalid type' });
+    }
+
+    const sql = `
+      UPDATE shop_reviews
+      SET
+        type=$1,
+        title=$2,
+        customer_name=$3,
+        customer_name_mask=$4,
+        rating=$5,
+        order_text=$6,
+        comment=$7,
+        image_url=$8,
+        video_url=$9,
+        thumbnail_url=$10,
+        product_id=$11,
+        platform=$12,
+        is_active=$13,
+        sort_order=$14,
+        updated_at=now()
+      WHERE id=$15
+      RETURNING *
+    `;
+
+    const params = [
+      type,
+      title,
+      customer_name,
+      customer_name_mask,
+      rating ? Number(rating) : null,
+      order_text,
+      comment,
+      image_url,
+      video_url,
+      thumbnail_url,
+      product_id ? Number(product_id) : null,
+      platform,
+      Boolean(is_active),
+      Number(sort_order || 0),
+      id,
+    ];
+
+    const { rows } = await query(sql, params);
+    if (!rows.length) return res.status(404).json({ error: 'not found' });
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('PUT /api/reviews/:id failed:', err);
+    res.status(500).json({ error: 'failed to update review' });
+  }
+});
+
+// ลบรีวิว
+app.delete('/api/reviews/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id || 0);
+    if (!id) return res.status(400).json({ error: 'invalid id' });
+
+    await query(`DELETE FROM shop_reviews WHERE id=$1`, [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('DELETE /api/reviews/:id failed:', err);
+    res.status(500).json({ error: 'failed to delete review' });
+  }
+});
+
+// toggle เปิด/ปิดการแสดงผล
+app.patch('/api/reviews/:id/toggle', async (req, res) => {
+  try {
+    const id = Number(req.params.id || 0);
+    if (!id) return res.status(400).json({ error: 'invalid id' });
+
+    const { rows } = await query(
+      `UPDATE shop_reviews
+       SET is_active = NOT is_active, updated_at = now()
+       WHERE id=$1
+       RETURNING *`,
+      [id]
+    );
+
+    if (!rows.length) return res.status(404).json({ error: 'not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('PATCH /api/reviews/:id/toggle failed:', err);
+    res.status(500).json({ error: 'failed to toggle review' });
   }
 });
 
