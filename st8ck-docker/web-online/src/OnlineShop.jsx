@@ -1260,21 +1260,22 @@ const submitOrder = async ({ name, address, phone, note, payment }) => {
   <VideoReviewSection items={videoReviews} />
   <CustomerReviewSection items={customerReviews} />
 
-<div>
 
-  {/* รายการสินค้า */}
-  {loading && <div>กำลังโหลดสินค้า...</div>}
-  {error && <div className="text-red-600">{error}</div>}
+{!loading && !error && (
+  <>
+    {/* หัวข้อรายการสินค้า */}
+    <div className="mt-12 mb-4">
+      <h2 className="text-xl font-semibold text-gray-900">รายการสินค้า</h2>
+    </div>
 
-  {!loading && !error && (
+    {/* grid สินค้า */}
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
       {filtered.map((p) => (
         <ProductCard key={p.id} p={p} onAdd={add} />
       ))}
     </div>
-  )}
-  
-</div>
+  </>
+)}
 
 </main>
 
