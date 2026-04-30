@@ -13,7 +13,6 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 app.use(morgan('tiny'));
-
 app.put('/bills/:id/status', async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -173,8 +172,6 @@ const uploadDir = path.join(__dirname, '..', 'uploads');
 fs.mkdirSync(uploadDir, { recursive: true });
 app.use('/uploads', express.static(uploadDir));
 
-
-
 // ===== Multer (ต้องมาก่อน routes ที่ใช้ upload) =====
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
@@ -233,6 +230,11 @@ app.post('/api/products', async (req, res) => {
     res.status(400).json({ error: e.message });
   }
 });
+
+
+
+
+
 
 
 // ตัวอย่าง: list + cover_image
@@ -693,6 +695,59 @@ app.get('/api/bills/:id', async (req, res) => {
 
 
 
+// ตัวอย่าง: ดึงรีวิวทั้งหมด (รองรับ ?type=... และ ?active=1)
+
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const { type, active = '1' } = req.query;
+
+    const where = [];
+    const params = [];
+
+    if (type) {
+      params.push(type);
+      where.push(`type = $${params.length}`);
+    }
+
+    if (active === '1') {
+      where.push(`is_active IS TRUE`);
+    }
+
+    const sql = `
+      SELECT
+        id,
+        type,
+        title,
+        customer_name,
+        customer_name_mask,
+        rating,
+        order_text,
+        comment,
+        image_url,
+        video_url,
+        thumbnail_url,
+        product_id,
+        platform,
+        is_active,
+        sort_order,
+        created_at,
+        updated_at
+      FROM shop_reviews
+      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+      ORDER BY sort_order ASC, id DESC
+    `;
+
+    const { rows } = await query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/reviews failed:', err);
+    res.status(500).json({ error: 'failed to load reviews' });
+  }
+});
+
+
+
+
 app.use(express.static(publicDir));
 app.get('*', (req,res)=> res.sendFile(path.join(publicDir, 'index.html')));
 
@@ -758,50 +813,3 @@ await query(`
   ADD COLUMN IF NOT EXISTS payment_slip_url TEXT
 `);
 
-app.get('/api/reviews', async (req, res) => {
-  try {
-    const { type, active = '1' } = req.query;
-
-    const where = [];
-    const params = [];
-
-    if (type) {
-      params.push(type);
-      where.push(`type = $${params.length}`);
-    }
-
-    if (active === '1') {
-      where.push(`is_active IS TRUE`);
-    }
-
-    const sql = `
-      SELECT
-        id,
-        type,
-        title,
-        customer_name,
-        customer_name_mask,
-        rating,
-        order_text,
-        comment,
-        image_url,
-        video_url,
-        thumbnail_url,
-        product_id,
-        platform,
-        is_active,
-        sort_order,
-        created_at,
-        updated_at
-      FROM shop_reviews
-      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-      ORDER BY sort_order ASC, id DESC
-    `;
-
-    const { rows } = await query(sql, params);
-    res.json(rows);
-  } catch (err) {
-    console.error('GET /api/reviews failed:', err);
-    res.status(500).json({ error: 'failed to load reviews' });
-  }
-});
