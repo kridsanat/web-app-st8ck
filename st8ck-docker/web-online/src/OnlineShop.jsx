@@ -702,18 +702,18 @@ function VideoReviewSection({ items = [] }) {
               <img
                 src={normalizeImage(item.thumbnail_url)}
                 alt={item.title || 'video review'}
-                className="h-[320px] w-full object-cover"
+                className="h-[160px] w-full object-cover"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
               />
             ) : (
-              <div className="grid h-[320px] w-full place-items-center bg-gray-100 text-gray-400">
+              <div className="grid h-[160px] w-full place-items-center bg-gray-100 text-gray-400">
                 ไม่มีภาพปก
               </div>
             )}
 
-            <div className="p-3">
+            <div className="p-2">
               <div className="line-clamp-2 text-sm font-medium text-gray-800">
                 {item.title || 'วิดีโอรีวิว'}
               </div>
@@ -751,19 +751,19 @@ function CustomerReviewSection({ items = [] }) {
               <img
                 src={normalizeImage(item.image_url)}
                 alt={item.customer_name_mask || 'review'}
-                className="h-[320px] w-full object-cover"
+                className="h-[160px] w-full object-cover"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
               />
             ) : (
-              <div className="grid h-[320px] w-full place-items-center bg-gray-100 text-gray-400">
+              <div className="grid h-[160px] w-full place-items-center bg-gray-100 text-gray-400">
                 ไม่มีรูปรีวิว
               </div>
             )}
 
             {/* ข้อมูลรีวิว */}
-            <div className="p-4">
+            <div className="p-3">
               <div className="font-medium text-gray-900">
                 {item.customer_name_mask || item.customer_name || 'ลูกค้า'}
               </div>
