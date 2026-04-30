@@ -49,66 +49,31 @@ const genDoc = (prefix = "WEB") => {
 };
 
 function useCart() {
-  const [items, setItems] = useState(() => {
+  const safeReadCart = () => {
     try {
-      const raw = localStorage.getItem("shop_cart_v1");
+      if (typeof window === "undefined" || !window.localStorage) return [];
+      const raw = window.localStorage.getItem("shop_cart_v1");
       return raw ? JSON.parse(raw) : [];
-    } catch {
+    } catch (e) {
+      console.warn("read cart failed:", e);
       return [];
     }
-  });
-
-useEffect(() => {
-  let alive = true;
-
-  (async () => {
-    const result = {
-      api: API || '(same-origin)',
-      shop: null,
-      products: null,
-      stock: null,
-      shipping: null,
-      ua: navigator.userAgent,
-    };
-
-    try {
-      const r = await fetch(`${API}/api/shop`);
-      result.shop = { ok: r.ok, status: r.status };
-    } catch (e) {
-      result.shop = { ok: false, error: String(e?.message || e) };
-    }
-
-    try {
-      const r = await fetch(`${API}/api/products`);
-      result.products = { ok: r.ok, status: r.status };
-    } catch (e) {
-      result.products = { ok: false, error: String(e?.message || e) };
-    }
-
-    try {
-      const r = await fetch(`${API}/api/stock`);
-      result.stock = { ok: r.ok, status: r.status };
-    } catch (e) {
-      result.stock = { ok: false, error: String(e?.message || e) };
-    }
-
-    try {
-      const r = await fetch(`${API}/api/shipping_methods`);
-      result.shipping = { ok: r.ok, status: r.status };
-    } catch (e) {
-      result.shipping = { ok: false, error: String(e?.message || e) };
-    }
-
-    if (alive) setDebugInfo(result);
-  })();
-
-  return () => {
-    alive = false;
   };
-}, []);
+
+  const safeWriteCart = (items) => {
+    try {
+      if (typeof window === "undefined" || !window.localStorage) return;
+      window.localStorage.setItem("shop_cart_v1", JSON.stringify(items));
+    } catch (e) {
+      // กันหน้าเว็บพังบนมือถือ/private mode
+      console.warn("write cart failed:", e);
+    }
+  };
+
+  const [items, setItems] = useState(() => safeReadCart());
 
   useEffect(() => {
-    localStorage.setItem("shop_cart_v1", JSON.stringify(items));
+    safeWriteCart(items);
   }, [items]);
 
   const add = (p, qty = 1) =>
@@ -155,6 +120,7 @@ useEffect(() => {
           : x
       )
     );
+
   const remove = (id) => setItems((prev) => prev.filter((x) => x.id !== id));
   const clear = () => setItems([]);
 
