@@ -947,11 +947,6 @@ export default function OnlineShop() {
 const [shipMethods, setShipMethods] = useState([]);
 const [shipping, setShipping] = useState({ method_id: null, region: 'bkk', fee: 0 });
 
-const [products, setProducts] = useState([]);
-const [loading, setLoading] = useState(true);
-const [error, setError] = useState(null);
-const [shop, setShop] = useState(null);
-
 // รีวิวแยก 2 กลุ่ม: วิดีโอ / รีวิวลูกค้า
 const [videoReviews, setVideoReviews] = useState([]);
 const [customerReviews, setCustomerReviews] = useState([]);
