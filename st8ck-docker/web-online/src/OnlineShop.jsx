@@ -21,14 +21,6 @@ const normalizeImage = (u) => {
   return `${API}/uploads/${u}`;
 };
 
-const pickStock = (p) => {
-  const cands = [p?.stock, p?.stock_qty, p?.qty, p?.quantity, p?.remaining];
-  for (const v of cands) {
-    const n = Number(v);
-    if (Number.isFinite(n)) return n;   // ได้ตัวเลขจริง ก็คืนเลย
-  }
-  return null;                          // อ่านไม่ได้ = ไม่มีข้อมูล
-};
 
 // เดิม Number(null) = 0 -> ทำให้เหมือนหมดสต๊อกทั้งที่ "ไม่รู้จำนวน"
 // แก้เป็นคืน undefined ถ้าไม่มีค่า
@@ -259,7 +251,7 @@ const href = raw ? (/^https?:\/\//i.test(raw) ? raw : `https://${raw}`) : null;
 
 // ---------- Carousel แสดงหลายรูป ----------
 function ProductImageCarousel({ images = [], onOpen }) {
-  const ref = React.useRef(null);
+ 
   const list = images.length ? images : [];
 
   if (!list.length) {
