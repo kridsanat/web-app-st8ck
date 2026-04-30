@@ -699,6 +699,58 @@ app.get('/api/bills/:id', async (req, res) => {
 // ตัวอย่าง: ดึงรีวิวทั้งหมด (รองรับ ?type=... และ ?active=1)
 
 // สร้างรีวิว / วิดีโอรีวิว
+// ===== Reviews API =====
+
+// อ่านรีวิว
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const { type, active = '1' } = req.query;
+
+    const where = [];
+    const params = [];
+
+    if (type) {
+      params.push(type);
+      where.push(`type = $${params.length}`);
+    }
+
+    if (active === '1') {
+      where.push(`is_active IS TRUE`);
+    }
+
+    const sql = `
+      SELECT
+        id,
+        type,
+        title,
+        customer_name,
+        customer_name_mask,
+        rating,
+        order_text,
+        comment,
+        image_url,
+        video_url,
+        thumbnail_url,
+        product_id,
+        platform,
+        is_active,
+        sort_order,
+        created_at,
+        updated_at
+      FROM shop_reviews
+      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+      ORDER BY sort_order ASC, id DESC
+    `;
+
+    const { rows } = await query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/reviews failed:', err);
+    res.status(500).json({ error: 'failed to load reviews' });
+  }
+});
+
+// สร้างรีวิว
 app.post('/api/reviews', async (req, res) => {
   try {
     const {
@@ -736,7 +788,7 @@ app.post('/api/reviews', async (req, res) => {
       title,
       customer_name,
       customer_name_mask,
-      rating ? Number(rating) : null,
+      rating === null || rating === '' ? null : Number(rating),
       order_text,
       comment,
       image_url,
@@ -756,7 +808,7 @@ app.post('/api/reviews', async (req, res) => {
   }
 });
 
-// แก้ไขรีวิว / วิดีโอรีวิว
+// แก้ไขรีวิว
 app.put('/api/reviews/:id', async (req, res) => {
   try {
     const id = Number(req.params.id || 0);
@@ -810,7 +862,7 @@ app.put('/api/reviews/:id', async (req, res) => {
       title,
       customer_name,
       customer_name_mask,
-      rating ? Number(rating) : null,
+      rating === null || rating === '' ? null : Number(rating),
       order_text,
       comment,
       image_url,
@@ -847,7 +899,7 @@ app.delete('/api/reviews/:id', async (req, res) => {
   }
 });
 
-// toggle เปิด/ปิดการแสดงผล
+// toggle เปิด/ปิด
 app.patch('/api/reviews/:id/toggle', async (req, res) => {
   try {
     const id = Number(req.params.id || 0);
