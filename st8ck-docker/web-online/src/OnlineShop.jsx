@@ -1252,33 +1252,25 @@ const submitOrder = async ({ name, address, phone, note, payment }) => {
 </header>
    
 
-      <main className="mx-auto max-w-6xl p-4">
-        
-        
-        {/* 👇 เพิ่มบรรทัดนี้ แสดงเมนูรายละเอียดร้านค้า*/}
-        <ShopHero />
+<main className="mx-auto max-w-6xl p-4">
+  {/* ข้อมูลร้าน / แบนเนอร์ */}
+  <ShopHero />
 
+  {/* รีวิวแสดงก่อนรายการสินค้า */}
+  <VideoReviewSection items={videoReviews} />
+  <CustomerReviewSection items={customerReviews} />
 
+  {/* รายการสินค้า */}
+  {loading && <div>กำลังโหลดสินค้า...</div>}
+  {error && <div className="text-red-600">{error}</div>}
 
-        {loading && <div>กำลังโหลดสินค้า...</div>}
-        {error && <div className="text-red-600">{error}</div>}
-
-        {!loading && !error && (
-  <>
-    {/* รายการสินค้า */}
+  {!loading && !error && (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
       {filtered.map((p) => (
         <ProductCard key={p.id} p={p} onAdd={add} />
       ))}
     </div>
-
-    {/* วิดีโอรีวิว */}
-    <VideoReviewSection items={videoReviews} />
-
-    {/* รีวิวจากลูกค้า */}
-    <CustomerReviewSection items={customerReviews} />
-  </>
-)}
+  )}
 </main>
 
 <CartDrawer
