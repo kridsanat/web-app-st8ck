@@ -57,6 +57,56 @@ function useCart() {
       return [];
     }
   });
+
+useEffect(() => {
+  let alive = true;
+
+  (async () => {
+    const result = {
+      api: API || '(same-origin)',
+      shop: null,
+      products: null,
+      stock: null,
+      shipping: null,
+      ua: navigator.userAgent,
+    };
+
+    try {
+      const r = await fetch(`${API}/api/shop`);
+      result.shop = { ok: r.ok, status: r.status };
+    } catch (e) {
+      result.shop = { ok: false, error: String(e?.message || e) };
+    }
+
+    try {
+      const r = await fetch(`${API}/api/products`);
+      result.products = { ok: r.ok, status: r.status };
+    } catch (e) {
+      result.products = { ok: false, error: String(e?.message || e) };
+    }
+
+    try {
+      const r = await fetch(`${API}/api/stock`);
+      result.stock = { ok: r.ok, status: r.status };
+    } catch (e) {
+      result.stock = { ok: false, error: String(e?.message || e) };
+    }
+
+    try {
+      const r = await fetch(`${API}/api/shipping_methods`);
+      result.shipping = { ok: r.ok, status: r.status };
+    } catch (e) {
+      result.shipping = { ok: false, error: String(e?.message || e) };
+    }
+
+    if (alive) setDebugInfo(result);
+  })();
+
+  return () => {
+    alive = false;
+  };
+}, []);
+
   useEffect(() => {
     localStorage.setItem("shop_cart_v1", JSON.stringify(items));
   }, [items]);
@@ -444,6 +494,11 @@ const [lbIndex, setLbIndex] = React.useState(0);
           </div>
         )}
         
+{debugInfo && (
+  <pre className="mb-4 overflow-auto rounded-xl bg-yellow-50 p-3 text-xs text-gray-700 border">
+    {JSON.stringify(debugInfo, null, 2)}
+  </pre>
+)}        
 
       </div>
 
