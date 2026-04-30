@@ -13,6 +13,7 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 app.use(morgan('tiny'));
+
 app.put('/bills/:id/status', async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
