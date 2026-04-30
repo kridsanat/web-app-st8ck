@@ -1259,7 +1259,9 @@ const submitOrder = async ({ name, address, phone, note, payment }) => {
   {/* รีวิวแสดงก่อนรายการสินค้า */}
   <VideoReviewSection items={videoReviews} />
   <CustomerReviewSection items={customerReviews} />
-<tr />
+
+<div>
+
   {/* รายการสินค้า */}
   {loading && <div>กำลังโหลดสินค้า...</div>}
   {error && <div className="text-red-600">{error}</div>}
@@ -1271,6 +1273,9 @@ const submitOrder = async ({ name, address, phone, note, payment }) => {
       ))}
     </div>
   )}
+  
+</div>
+
 </main>
 
 <CartDrawer
