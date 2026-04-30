@@ -757,3 +757,51 @@ await query(`
     CHECK (payment_method IN ('cod','transfer')),
   ADD COLUMN IF NOT EXISTS payment_slip_url TEXT
 `);
+
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const { type, active = '1' } = req.query;
+
+    const where = [];
+    const params = [];
+
+    if (type) {
+      params.push(type);
+      where.push(`type = $${params.length}`);
+    }
+
+    if (active === '1') {
+      where.push(`is_active IS TRUE`);
+    }
+
+    const sql = `
+      SELECT
+        id,
+        type,
+        title,
+        customer_name,
+        customer_name_mask,
+        rating,
+        order_text,
+        comment,
+        image_url,
+        video_url,
+        thumbnail_url,
+        product_id,
+        platform,
+        is_active,
+        sort_order,
+        created_at,
+        updated_at
+      FROM shop_reviews
+      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+      ORDER BY sort_order ASC, id DESC
+    `;
+
+    const { rows } = await query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/reviews failed:', err);
+    res.status(500).json({ error: 'failed to load reviews' });
+  }
+});
