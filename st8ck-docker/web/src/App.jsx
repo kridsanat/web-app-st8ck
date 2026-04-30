@@ -1209,6 +1209,390 @@ const r = await fetch(`/api/shipping_methods?all=1`);
 }
 
 
+
+
+function ReviewTab() {
+  const { data: rows, loading, error, setData: setRows } = useFetch('/api/reviews?active=0');
+
+  const initialForm = {
+    type: 'review',
+    title: '',
+    customer_name: '',
+    customer_name_mask: '',
+    rating: 5,
+    order_text: '',
+    comment: '',
+    image_url: '',
+    video_url: '',
+    thumbnail_url: '',
+    product_id: '',
+    platform: 'manual',
+    is_active: true,
+    sort_order: 0,
+  };
+
+  const [form, setForm] = useState(initialForm);
+  const [editingId, setEditingId] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const resetForm = () => {
+    setEditingId(null);
+    setForm(initialForm);
+  };
+
+  const refreshReviews = async () => {
+    try {
+      const r = await fetch(`${API}/api/reviews?active=0`);
+      const j = await r.json();
+      setRows(Array.isArray(j) ? j : []);
+    } catch (e) {
+      console.error(e);
+      alert('โหลดรายการรีวิวไม่สำเร็จ');
+    }
+  };
+
+  const uploadSingleImage = async (field, file) => {
+    if (!file) return;
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await fetch(`${API}/api/files`, { method: 'POST', body: fd });
+      const j = await r.json();
+      if (!r.ok || !j?.url) throw new Error(j?.error || 'upload failed');
+
+      setForm(prev => ({ ...prev, [field]: j.url }));
+    } catch (e) {
+      console.error(e);
+      alert('อัปโหลดรูปไม่สำเร็จ');
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+
+    try {
+      const payload = {
+        type: form.type,
+        title: form.title || null,
+        customer_name: form.customer_name || null,
+        customer_name_mask: form.customer_name_mask || null,
+        rating: form.type === 'review' ? Number(form.rating || 0) : null,
+        order_text: form.order_text || null,
+        comment: form.comment || null,
+        image_url: form.image_url || null,
+        video_url: form.video_url || null,
+        thumbnail_url: form.thumbnail_url || null,
+        product_id: form.product_id ? Number(form.product_id) : null,
+        platform: form.platform || null,
+        is_active: !!form.is_active,
+        sort_order: Number(form.sort_order || 0),
+      };
+
+      const url = editingId ? `${API}/api/reviews/${editingId}` : `${API}/api/reviews`;
+      const method = editingId ? 'PUT' : 'POST';
+
+      const r = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j?.error || 'save failed');
+
+      alert(editingId ? 'แก้ไขรีวิวสำเร็จ' : 'เพิ่มรีวิวสำเร็จ');
+      resetForm();
+      refreshReviews();
+    } catch (e) {
+      console.error(e);
+      alert(`บันทึกไม่สำเร็จ: ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleEdit = (row) => {
+    setEditingId(row.id);
+    setForm({
+      type: row.type || 'review',
+      title: row.title || '',
+      customer_name: row.customer_name || '',
+      customer_name_mask: row.customer_name_mask || '',
+      rating: row.rating ?? 5,
+      order_text: row.order_text || '',
+      comment: row.comment || '',
+      image_url: row.image_url || '',
+      video_url: row.video_url || '',
+      thumbnail_url: row.thumbnail_url || '',
+      product_id: row.product_id || '',
+      platform: row.platform || 'manual',
+      is_active: !!row.is_active,
+      sort_order: row.sort_order || 0,
+    });
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('ต้องการลบรีวิวนี้ใช่หรือไม่?')) return;
+    try {
+      const r = await fetch(`${API}/api/reviews/${id}`, { method: 'DELETE' });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j?.error || 'delete failed');
+      refreshReviews();
+    } catch (e) {
+      console.error(e);
+      alert('ลบรีวิวไม่สำเร็จ');
+    }
+  };
+
+  const handleToggle = async (id) => {
+    try {
+      const r = await fetch(`${API}/api/reviews/${id}/toggle`, { method: 'PATCH' });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j?.error || 'toggle failed');
+      refreshReviews();
+    } catch (e) {
+      console.error(e);
+      alert('เปลี่ยนสถานะไม่สำเร็จ');
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+      <div className="md:col-span-5">
+        <div className="bg-white border rounded-2xl p-4 shadow-sm">
+          <div className="font-semibold text-green-700 mb-3">
+            {editingId ? 'แก้ไขรีวิว' : 'สร้างรีวิว'}
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <Labeled label="ประเภท">
+              <select
+                className="input w-full"
+                value={form.type}
+                onChange={(e) => setForm({ ...form, type: e.target.value })}
+              >
+                <option value="review">รีวิวลูกค้า</option>
+                <option value="video">วิดีโอรีวิว</option>
+              </select>
+            </Labeled>
+
+            <Labeled label="หัวข้อ">
+              <input
+                className="input w-full"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="เช่น รีวิวสินค้าจากลูกค้า"
+              />
+            </Labeled>
+
+            <Labeled label="ชื่อลูกค้า (ย่อ)">
+              <input
+                className="input w-full"
+                value={form.customer_name_mask}
+                onChange={(e) => setForm({ ...form, customer_name_mask: e.target.value })}
+                placeholder="เช่น A**8"
+              />
+            </Labeled>
+
+            {form.type === 'review' && (
+              <>
+                <Labeled label="คะแนนดาว">
+                  <input
+                    type="number"
+                    min="1"
+                    max="5"
+                    className="input w-full"
+                    value={form.rating}
+                    onChange={(e) => setForm({ ...form, rating: e.target.value })}
+                  />
+                </Labeled>
+
+                <Labeled label="รายการสั่งซื้อ">
+                  <input
+                    className="input w-full"
+                    value={form.order_text}
+                    onChange={(e) => setForm({ ...form, order_text: e.target.value })}
+                    placeholder="เช่น รายการ: 1 กระปุก 490.-"
+                  />
+                </Labeled>
+
+                <Labeled label="ข้อความรีวิว">
+                  <textarea
+                    className="input w-full"
+                    rows={3}
+                    value={form.comment}
+                    onChange={(e) => setForm({ ...form, comment: e.target.value })}
+                  />
+                </Labeled>
+
+                <Labeled label="รูปรีวิว">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="input w-full"
+                    onChange={(e) => uploadSingleImage('image_url', e.target.files?.[0])}
+                  />
+                  {form.image_url && (
+                    <img src={form.image_url} alt="" className="mt-2 h-24 rounded-lg border object-cover" />
+                  )}
+                </Labeled>
+              </>
+            )}
+
+            {form.type === 'video' && (
+              <>
+                <Labeled label="ลิงก์วิดีโอ">
+                  <input
+                    className="input w-full"
+                    value={form.video_url}
+                    onChange={(e) => setForm({ ...form, video_url: e.target.value })}
+                    placeholder="https://..."
+                  />
+                </Labeled>
+
+                <Labeled label="ภาพปกวิดีโอ">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="input w-full"
+                    onChange={(e) => uploadSingleImage('thumbnail_url', e.target.files?.[0])}
+                  />
+                  {form.thumbnail_url && (
+                    <img src={form.thumbnail_url} alt="" className="mt-2 h-24 rounded-lg border object-cover" />
+                  )}
+                </Labeled>
+              </>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <Labeled label="Platform">
+                <input
+                  className="input w-full"
+                  value={form.platform}
+                  onChange={(e) => setForm({ ...form, platform: e.target.value })}
+                  placeholder="manual / tiktok / facebook"
+                />
+              </Labeled>
+
+              <Labeled label="ลำดับ">
+                <input
+                  type="number"
+                  className="input w-full"
+                  value={form.sort_order}
+                  onChange={(e) => setForm({ ...form, sort_order: e.target.value })}
+                />
+              </Labeled>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={!!form.is_active}
+                onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+              />
+              แสดงผล
+            </label>
+
+            <div className="flex flex-col space-y-2 pt-2">
+              <button disabled={busy} className="w-full h-11 btn-primary">
+                {busy ? 'กำลังบันทึก...' : editingId ? 'อัปเดตรีวิว' : 'บันทึกรีวิว'}
+              </button>
+
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="w-full text-center text-sm text-gray-600 hover:underline"
+                >
+                  ยกเลิกการแก้ไข
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div className="md:col-span-7">
+        <div className="bg-white border rounded-2xl p-4 shadow-sm">
+          <div className="font-semibold text-green-700 mb-3">รายการรีวิว</div>
+
+          {loading && <div>กำลังโหลด...</div>}
+          {error && <div className="text-red-600">โหลดข้อมูลไม่สำเร็จ</div>}
+
+          <div className="space-y-3 max-h-[640px] overflow-auto pb-4">
+            {(rows || []).map((row) => (
+              <div key={row.id} className="border rounded-xl p-4 bg-white flex items-start justify-between gap-3">
+                <div className="flex gap-3 min-w-0">
+                  {(row.image_url || row.thumbnail_url) ? (
+                    <img
+                      src={row.image_url || row.thumbnail_url}
+                      alt=""
+                      className="w-20 h-20 rounded-lg border object-cover"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-lg border bg-gray-100 grid place-items-center">🖼️</div>
+                  )}
+
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm">
+                      {row.type === 'video' ? 'วิดีโอรีวิว' : 'รีวิวลูกค้า'}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {row.customer_name_mask || row.title || '-'}
+                    </div>
+                    {row.order_text && <div className="text-xs text-gray-500 mt-1">{row.order_text}</div>}
+                    {row.comment && <div className="text-sm mt-1 text-gray-700">{row.comment}</div>}
+                    {row.video_url && <div className="text-xs mt-1 text-blue-600 truncate">{row.video_url}</div>}
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <div className="text-xs">
+                    <span className={row.is_active ? 'text-green-700' : 'text-gray-500'}>
+                      {row.is_active ? 'แสดงผล' : 'ซ่อน'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-400">ลำดับ {row.sort_order}</div>
+
+                  <div className="mt-2 flex justify-end gap-3">
+                    <button
+                      onClick={() => handleEdit(row)}
+                      className="text-xs font-medium text-green-700 hover:underline"
+                    >
+                      แก้ไข
+                    </button>
+                    <button
+                      onClick={() => handleToggle(row.id)}
+                      className="text-xs font-medium text-blue-600 hover:underline"
+                    >
+                      {row.is_active ? 'ปิด' : 'เปิด'}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(row.id)}
+                      className="text-xs font-medium text-red-600 hover:underline"
+                    >
+                      ลบ
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {!loading && (!rows || rows.length === 0) && (
+              <div className="text-sm text-gray-500">ยังไม่มีรีวิว</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+
+
 function SalesReport() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const { data: rows, loading, error } = useFetch(`/api/reports/sales?month=${month}`);
@@ -1593,6 +1977,14 @@ export default function App() {
 >
   ร้านค้า
 </button>
+
+<button
+  onClick={() => setTab(100)}
+  className={tab===100 ? "font-semibold text-green-800" : "text-slate-500 hover:text-green-700"}
+>
+  รีวิว
+</button>
+
  <button
    onClick={() => setTab(99)}
    className={tab===99 ? "font-semibold text-green-800" : "text-slate-500 hover:text-green-700"}
@@ -1624,6 +2016,7 @@ export default function App() {
           {tab === 6 && <PurchaseReport />}
           {tab === 98 && <ShopTab />}
           {tab === 99 && <ShippingTab />}
+          {tab === 100 && <ReviewTab />}
 
         </main>
 
