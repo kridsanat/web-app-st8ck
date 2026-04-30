@@ -731,8 +731,18 @@ function VideoReviewSection({ items = [] }) {
 // การ์ดรีวิวลูกค้า
 // รีวิวลูกค้าแบบเน้นรูป
 function CustomerReviewSection({ items = [] }) {
-  // ถ้าไม่มีข้อมูล ไม่ต้องแสดง
   if (!items.length) return null;
+
+  const [lbOpen, setLbOpen] = React.useState(false);
+  const [lbImages, setLbImages] = React.useState([]);
+  const [lbIndex, setLbIndex] = React.useState(0);
+
+  const openLightbox = (imageUrl) => {
+    if (!imageUrl) return;
+    setLbImages([imageUrl]);   // รีวิวตอนนี้ 1 การ์ด = 1 รูป
+    setLbIndex(0);
+    setLbOpen(true);
+  };
 
   return (
     <section className="mt-10">
@@ -746,12 +756,12 @@ function CustomerReviewSection({ items = [] }) {
             key={item.id}
             className="overflow-hidden rounded-2xl border bg-white shadow-sm"
           >
-            {/* รูปรีวิว */}
             {item.image_url ? (
               <img
                 src={normalizeImage(item.image_url)}
                 alt={item.customer_name_mask || 'review'}
-                className="h-[160px] w-full object-cover"
+                className="h-[160px] w-full cursor-zoom-in object-cover"
+                onClick={() => openLightbox(item.image_url)}
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
@@ -762,7 +772,6 @@ function CustomerReviewSection({ items = [] }) {
               </div>
             )}
 
-            {/* ข้อมูลรีวิว */}
             <div className="p-3">
               <div className="font-medium text-gray-900">
                 {item.customer_name_mask || item.customer_name || 'ลูกค้า'}
@@ -787,6 +796,14 @@ function CustomerReviewSection({ items = [] }) {
           </div>
         ))}
       </div>
+
+      {lbOpen && (
+        <ImageLightbox
+          images={lbImages}
+          index={lbIndex}
+          onClose={() => setLbOpen(false)}
+        />
+      )}
     </section>
   );
 }
