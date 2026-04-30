@@ -733,6 +733,17 @@ function VideoReviewSection({ items = [] }) {
 function CustomerReviewSection({ items = [] }) {
   if (!items.length) return null;
 
+  const [lbOpen, setLbOpen] = React.useState(false);
+  const [lbImages, setLbImages] = React.useState([]);
+  const [lbIndex, setLbIndex] = React.useState(0);
+
+  const openLightbox = (imageUrl) => {
+    if (!imageUrl) return;
+    setLbImages([imageUrl]);
+    setLbIndex(0);
+    setLbOpen(true);
+  };
+
   return (
     <section className="mt-10">
       <div className="mb-4 flex items-center justify-between">
@@ -749,7 +760,8 @@ function CustomerReviewSection({ items = [] }) {
               <img
                 src={normalizeImage(item.image_url)}
                 alt={item.customer_name_mask || "review"}
-                className="aspect-[3/4] w-full object-cover cursor-zoom-in"
+                className="aspect-[3/4] w-full cursor-zoom-in object-cover"
+                onClick={() => openLightbox(item.image_url)}
                 onError={(e) => {
                   e.currentTarget.style.display = "none";
                 }}
@@ -784,6 +796,14 @@ function CustomerReviewSection({ items = [] }) {
           </div>
         ))}
       </div>
+
+      {lbOpen && (
+        <ImageLightbox
+          images={lbImages}
+          index={lbIndex}
+          onClose={() => setLbOpen(false)}
+        />
+      )}
     </section>
   );
 }
