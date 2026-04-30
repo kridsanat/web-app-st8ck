@@ -493,7 +493,7 @@ const [lbIndex, setLbIndex] = React.useState(0);
             {p.description}
           </div>
         )}
-        
+
 {debugInfo && (
   <pre className="mb-4 overflow-auto rounded-xl bg-yellow-50 p-3 text-xs text-gray-700 border">
     {JSON.stringify(debugInfo, null, 2)}
@@ -1026,10 +1026,13 @@ useEffect(() => {
   (async () => {
     try {
       const r = await fetch(`${API}/api/shipping_methods`);
-      if (!r.ok) return;
+      if (!r.ok) throw new Error(`shipping_methods ${r.status}`);
       const rows = await r.json();
       setShipMethods(Array.isArray(rows) ? rows : []);
-    } catch {}
+    } catch (e) {
+      console.error('load shipping_methods failed:', e);
+      setError(`โหลดวิธีขนส่งไม่สำเร็จ: ${String(e?.message || e)}`);
+    }
   })();
 }, []);
 
@@ -1052,8 +1055,12 @@ useEffect(() => {
   (async () => {
     try {
       const r = await fetch(`${API}/api/shop`);
-      if (r.ok) setShop(await r.json());
-    } catch {}
+      if (!r.ok) throw new Error(`shop ${r.status}`);
+      setShop(await r.json());
+    } catch (e) {
+      console.error('load shop failed:', e);
+      setError(`โหลดข้อมูลร้านไม่สำเร็จ: ${String(e?.message || e)}`);
+    }
   })();
 }, []);
 
