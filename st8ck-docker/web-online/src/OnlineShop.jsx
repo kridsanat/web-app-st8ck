@@ -744,9 +744,6 @@ function CustomerReviewSection({ items = [] }) {
   if (!items.length) return null;
 
   return (
-    // ... ของเดิม
-  );
-}
     <section className="mt-10">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">รีวิวจากลูกค้า</h2>
