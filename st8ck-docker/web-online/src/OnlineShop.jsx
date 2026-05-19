@@ -750,7 +750,8 @@ function CustomerReviewSection({ items = [] }) {
         <h2 className="text-xl font-semibold text-gray-900">รีวิวจากลูกค้า</h2>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+{/* บนมือถือปรับเป็นแถวละ 3 กล่อง (จากเดิม 2) และหน้าจอใหญ่เป็นแถวละ 8 กล่อง (จากเดิม 6) */}
+<div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
         {items.map((item) => (
           <div
             key={item.id}
@@ -760,14 +761,14 @@ function CustomerReviewSection({ items = [] }) {
               <img
                 src={normalizeImage(item.image_url)}
                 alt={item.customer_name_mask || "review"}
-                className="aspect-[3/4] w-full cursor-zoom-in object-cover"
+                className="aspect-square w-full cursor-zoom-in object-cover"
                 onClick={() => openLightbox(item.image_url)}
                 onError={(e) => {
                   e.currentTarget.style.display = "none";
                 }}
               />
             ) : (
-              <div className="grid aspect-[2/2] w-full place-items-center bg-gray-100 text-gray-400">
+              <div className="grid aspect-[3/4] w-full place-items-center bg-gray-100 text-gray-400">
                 ไม่มีรูปรีวิว
               </div>
             )}
