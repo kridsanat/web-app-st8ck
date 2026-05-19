@@ -767,7 +767,7 @@ function CustomerReviewSection({ items = [] }) {
                 }}
               />
             ) : (
-              <div className="grid aspect-[3/4] w-full place-items-center bg-gray-100 text-gray-400">
+              <div className="grid aspect-[2/2] w-full place-items-center bg-gray-100 text-gray-400">
                 ไม่มีรูปรีวิว
               </div>
             )}
