@@ -265,11 +265,10 @@ function ProductImageCarousel({ images = [], onOpen }) {
   return (
     <div className="relative">
       {/* แทร็กสไลด์ — ปัดซ้ายขวาได้ แต่ซ่อนสกรอลบาร์ */}
-      <div
-        ref={ref}
-        className="flex overflow-x-auto snap-x snap-mandatory rounded-xl no-scrollbar"
-        style={{ scrollBehavior: 'smooth' }}
-      >
+<div
+  className="flex overflow-x-auto snap-x snap-mandatory rounded-xl no-scrollbar"
+  style={{ scrollBehavior: 'smooth' }}
+>
         {list.map((src, i) => (
           <div key={i} className="shrink-0 w-full snap-center">
 <div className="aspect-[2/3] sm:aspect-[3/4] w-full overflow-hidden rounded-xl bg-gray-50">
@@ -731,8 +730,6 @@ function VideoReviewSection({ items = [] }) {
 // การ์ดรีวิวลูกค้า
 // รีวิวลูกค้าแบบเน้นรูป
 function CustomerReviewSection({ items = [] }) {
-  if (!items.length) return null;
-
   const [lbOpen, setLbOpen] = React.useState(false);
   const [lbImages, setLbImages] = React.useState([]);
   const [lbIndex, setLbIndex] = React.useState(0);
@@ -744,7 +741,12 @@ function CustomerReviewSection({ items = [] }) {
     setLbOpen(true);
   };
 
+  if (!items.length) return null;
+
   return (
+    // ... ของเดิม
+  );
+}
     <section className="mt-10">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">รีวิวจากลูกค้า</h2>
