@@ -244,12 +244,9 @@ function ConfirmationModal({ show, onConfirm, onCancel, title, children }) {
 /**
  * Tab for creating, viewing, updating, and deleting products.
  */
-/**
- * Tab for creating, viewing, updating, and deleting products.
- */
 function ProductTab() {
   const { data: products, loading, error, setData: setProducts } = useFetch('/api/products');
-  const { data: stockRows, setData: setStockRows } = useFetch('/api/stock');
+  const { data: stockRows, setData: setStockRows } = useFetch('/api/stock'); // << เพิ่มบรรทัดนี้
   const initialFormState = { code: '', name: '', description: '', unit: 'ชิ้น', sell_price: '', buy_price: '', min_qty_alert: '', image_url: '', attributes: [] };
   const [form, setForm] = useState(initialFormState);
   const [busy, setBusy] = useState(false);
@@ -258,69 +255,183 @@ function ProductTab() {
   const [scanOpen, setScanOpen] = useState(false);
   const [pQuery, setPQuery] = useState('');
   const [reloading, setReloading] = useState(false);
-  const [imageMgrId, setImageMgrId] = useState(null);
+  const [imageMgrId, setImageMgrId] = useState(null); // productId ที่กำลังจัดการรูป
 
-  async function refreshProducts() {
-    try {
-      setReloading(true);
-      const [pr, sr] = await Promise.all([
-        fetch(`${API}/api/products`),
-        fetch(`${API}/api/stock`)
-      ]);
-      if (!pr.ok) throw new Error(await pr.text());
-      const list = await pr.json();
-      setProducts(list);
-      if (sr.ok) setStockRows(await sr.json());
-    } catch (e) {
-      console.error(e);
-      alert('รีเฟรชรายการไม่สำเร็จ');
-    } finally {
-      setReloading(false);
-    }
+async function refreshProducts() {
+  try {
+    setReloading(true);
+    const [pr, sr] = await Promise.all([
+      fetch(`${API}/api/products`),
+      fetch(`${API}/api/stock`)
+    ]);
+    if (!pr.ok) throw new Error(await pr.text());
+    const list = await pr.json();
+    setProducts(list);
+    if (sr.ok) setStockRows(await sr.json());
+  } catch (e) {
+    console.error(e);
+    alert('รีเฟรชรายการไม่สำเร็จ');
+  } finally {
+    setReloading(false);
   }
-
-  const handleEdit = (product) => {
+}
+const handleEdit = (product) => {
     setEditingProduct(product);
+    // เปลี่ยนจาก setForm(product); เป็นแบบด้านล่างนี้ครับ
     setForm({
       ...product,
       attributes: product.attributes || [] 
     });
-    // เลื่อนหน้าจอขึ้นไปบนสุดเพื่อให้เห็นฟอร์มแก้ไข
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  // 🌟 ฟังก์ชันคัดลอกสินค้า (Clone)
-  const handleClone = (product) => {
-    setEditingProduct(null); // เคลียร์สถานะแก้ไข (เพื่อให้เป็นโหมดสร้างใหม่)
-    
-    // สร้าง SKU ใหม่แบบสุ่ม (เอา SKU เดิม + สุ่มเลข 4 หลัก)
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const newSku = `${product.code}-R${randomSuffix}`;
-
-    setForm({
-      ...product,
-      id: undefined, // ลบ ID เดิมทิ้งเพื่อให้บันทึกเป็นชิ้นใหม่
-      code: newSku,  // ใส่ SKU ใหม่ที่สุ่มมา
-      attributes: product.attributes ? [...product.attributes] : [] // ก๊อปปี้ตัวเลือกเดิมมาด้วย
-    });
-
-    alert(`คัดลอกข้อมูลจาก "${product.name}" เรียบร้อยแล้ว (สร้างรหัสใหม่: ${newSku})`);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   const handleCancelEdit = () => {
     setEditingProduct(null);
     setForm(initialFormState);
   };
-  
   const handleDelete = (product) => setProductToDelete(product);
 
   // เรียงตาม "รหัสสินค้า"
   const byCode = (a, b) =>
     String(a.code ?? '').localeCompare(String(b.code ?? ''), undefined, { numeric: true, sensitivity: 'base' });
+  
+function ManageImagesModal({ productId, open, onClose }) {
+  const [loading, setLoading] = React.useState(false);
+  const [images, setImages] = React.useState([]);
 
-  // ... (ส่วน ManageImagesModal และ ImagePicker ใช้ตัวเดิมได้เลยครับ) ...
+  React.useEffect(() => {
+    if (!open || !productId) return;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/products/${productId}`);
+        const j = await res.json();
+        setImages(Array.isArray(j.images) ? j.images : []);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [open, productId]);
 
+  const onUploaded = (added) => {
+    setImages(prev => [...prev, ...added]);
+  };
+
+  const remove = async (imgId) => {
+    if (!confirm('ลบรูปนี้?')) return;
+    await fetch(`/api/products/${productId}/images/${imgId}`, { method: 'DELETE' });
+    setImages(prev => prev.filter(x => x.id !== imgId));
+  };
+
+  // ตัวอย่างส่งเรียงลำดับกลับ (หากคุณทำ drag&drop ค่อยส่งโครงนี้)
+  const saveOrder = async () => {
+    const payload = images.map((it, i) => ({ id: it.id, sort_order: i }));
+    await fetch(`/api/products/${productId}/images/order`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    alert('บันทึกลำดับแล้ว');
+  };
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl border w-[680px] max-w-[calc(100%-2rem)] p-4 shadow-xl">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold">จัดการรูปสินค้า</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-900">×</button>
+        </div>
+
+        {loading ? (
+          <div className="text-sm text-gray-500">กำลังโหลด...</div>
+        ) : (
+          <>
+            {/* แกลเลอรี */}
+            <div className="flex flex-wrap gap-3 mb-3 max-h-56 overflow-auto">
+              {images.length === 0 ? (
+                <div className="text-sm text-gray-500">ยังไม่มีรูป</div>
+              ) : images.map((img) => (
+                <div key={img.id} className="relative">
+                  <img src={img.image_url} className="w-24 h-24 object-cover rounded-lg border" />
+                  <button
+                    onClick={() => remove(img.id)}
+                    className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-red-600 text-white text-sm"
+                    title="ลบรูป"
+                  >×</button>
+                </div>
+              ))}
+            </div>
+
+
+
+<div className="mt-3 border-t pt-3 flex flex-wrap items-center gap-3">
+  {/* ซ้าย: uploader กินพื้นที่ที่เหลือ */}
+  <div className="flex-1 min-w-[12rem]">
+    <MultiImageUploader productId={productId} onUploaded={onUploaded} inline />
+  </div>
+
+  {/* ขวา: ปุ่มคำสั่ง */}
+  <div className="ml-auto flex items-center gap-2">
+    <button
+      onClick={saveOrder}
+      className="px-3 py-1.5 rounded-lg border bg-gray-50 hover:bg-gray-100"
+    >
+      บันทึกลำดับ
+    </button>
+    <button onClick={onClose} className="px-3 py-1.5 rounded-lg border">ปิด</button>
+  </div>
+</div>
+
+
+
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+  // แสดงรูปในลิสต์ + คลิกเพื่อเปลี่ยนรูป
+function ImagePicker({ p }) {
+  const camRef = useRef(null);
+  const fileRef = useRef(null);
+    
+    const pickFile = (e) => { e.stopPropagation(); fileRef.current?.click(); };
+    const onFile = async (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      try {
+        const up = await uploadImage(f);                      // 1) อัปโหลดไฟล์
+        const updated = await patchProductImage(p.id, up.url);// 2) อัปเดต image_url
+        setProducts((prev) => prev.map(x =>                  // 3) อัปเดต state
+          x.id === p.id ? { ...x, image_url: updated.image_url } : x
+        ));
+      } catch (err) {
+        console.error(err);
+        alert('เปลี่ยนรูปไม่สำเร็จ');
+      } finally {
+        e.target.value = '';
+      }
+    };
+  return (
+    <>
+      {/* คลิกรูป = เปิดกล้อง */}
+      <button type="button" onClick={() => camRef.current?.click()} className="shrink-0">
+        {p.image_url ? <img src={p.image_url} className="w-12 h-12 rounded-lg object-cover border" />
+                     : <div className="w-12 h-12 rounded-lg bg-gray-100 border flex items-center justify-center">📦</div>}
+      </button>
+
+      {/* กล้อง */}
+      <input ref={camRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFile} />
+      {/* เลือกรูปจากคลัง (ถ้าจะมีปุ่มแยก) */}
+      {/* <button onClick={() => fileRef.current?.click()} className="text-xs underline">เลือกรูปจากคลัง</button> */}
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+    </>
+  );
+}
+
+  // หลังค้นหา
+  // รวมสต๊อกจาก /api/stock เข้ากับสินค้า
   const baseList = React.useMemo(() => {
     const list = Array.isArray(products) ? products : [];
     const map = new Map(
@@ -336,93 +447,204 @@ function ProductTab() {
       return { ...p, stock };
     });
   }, [products, stockRows]);
-
   const pQ = pQuery.trim().toLowerCase();
   const productsFiltered = pQ
     ? baseList.filter(p => (`${p.code ?? ''} ${p.name ?? ''} ${p.barcode ?? ''}`).toLowerCase().includes(pQ))
     : baseList;
   const productsView = productsFiltered.slice().sort(byCode);
 
-  const submit = async (e) => {
-    e.preventDefault();
-    if (!form.code || !form.name) {
-      alert('กรอก รหัสสินค้า + ชื่อสินค้า ให้ครบก่อน');
+  // แทนที่ฟังก์ชัน submit เดิมใน ProductTab
+const submit = async (e) => {
+  e.preventDefault();
+  if (!form.code || !form.name) {
+    alert('กรอก รหัสสินค้า + ชื่อสินค้า ให้ครบก่อน');
+    return;
+  }
+
+  setBusy(true);
+  const url = editingProduct ? `${API}/api/products/${editingProduct.id}` : `${API}/api/products`;
+  const method = editingProduct ? 'PUT' : 'POST';
+
+  try {
+    
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({
+        code: String(form.code || '').trim(),
+        name: String(form.name || '').trim(),
+        unit: String(form.unit || 'ชิ้น'),
+        sell_price: Number(form.sell_price) || 0,
+        buy_price: Number(form.buy_price) || 0,
+        min_qty_alert: Number(form.min_qty_alert) || 0,
+        image_url: form.image_url || null,
+        description: form.description || null,
+        attributes: form.attributes || [] // ส่งข้อมูลตัวเลือกย่อยไป Backend
+      }),
+    });
+
+    // อ่านข้อความ error จาก backend ให้ได้ก่อน
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload?.error) {
+      const msg = payload?.error || payload?.message || `HTTP ${res.status}`;
+      alert(`บันทึกไม่สำเร็จ: ${msg}`);
       return;
     }
 
-    setBusy(true);
-    const url = editingProduct ? `${API}/api/products/${editingProduct.id}` : `${API}/api/products`;
-    const method = editingProduct ? 'PUT' : 'POST';
+    // รองรับทั้ง {product: {...}} และ {...} ตรง ๆ
+    const resultProduct = payload?.product ?? payload;
 
-    try {
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: String(form.code || '').trim(),
-          name: String(form.name || '').trim(),
-          unit: String(form.unit || 'ชิ้น'),
-          sell_price: Number(form.sell_price) || 0,
-          buy_price: Number(form.buy_price) || 0,
-          min_qty_alert: Number(form.min_qty_alert) || 0,
-          image_url: form.image_url || null,
-          description: form.description || null,
-          attributes: form.attributes || []
-        }),
-      });
-
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok || payload?.error) {
-        const msg = payload?.error || payload?.message || `HTTP ${res.status}`;
-        alert(`บันทึกไม่สำเร็จ: ${msg}`);
-        return;
-      }
-
-      const resultProduct = payload?.product ?? payload;
-      setProducts((prev = []) =>
-        editingProduct
-          ? prev.map(p => (p.id === resultProduct.id ? resultProduct : p))
-          : [...prev, resultProduct]
-      );
-
+    if (!resultProduct?.id) {
+      // กันกรณี backend รีเทิร์น {ok:true} เฉย ๆ
+      alert('บันทึกสำเร็จ แต่ไม่ได้ส่งข้อมูลสินค้า กลับมาจากเซิร์ฟเวอร์');
+      await refreshProducts();
       handleCancelEdit();
-    } catch (err) {
-      console.error(err);
-      alert(`บันทึกล้มเหลว: ${String(err?.message || err)}`);
-    } finally {
-      setBusy(false);
+      return;
     }
-  };
+
+    setProducts((prev = []) =>
+      editingProduct
+        ? prev.map(p => (p.id === resultProduct.id ? resultProduct : p))
+        : [...prev, resultProduct]
+    );
+
+    handleCancelEdit();
+  } catch (err) {
+    console.error(err);
+    alert(`บันทึกล้มเหลว: ${String(err?.message || err)}`);
+  } finally {
+    setBusy(false);
+  }
+};
+
 
   return (
     <>
-      {/* ... ส่วน Modal ต่างๆ (Delete, ManageImages) ... */}
-      
+      <ConfirmationModal
+        show={!!productToDelete}
+        onConfirm={async () => {
+          if (!productToDelete) return;
+          try {
+            const response = await fetch(`${API}/api/products/${productToDelete.id}`, { method: 'DELETE' });
+            if (!response.ok) throw new Error('Failed to delete product');
+            setProducts((products || []).filter(p => p.id !== productToDelete.id));
+          } catch (err) {
+            console.error("Deletion failed:", err);
+          } finally {
+            setProductToDelete(null);
+          }
+        }}
+        onCancel={() => setProductToDelete(null)}
+        title="ยืนยันการลบสินค้า"
+      >
+        คุณแน่ใจหรือไม่ว่าต้องการลบสินค้า <span className="font-bold">"{productToDelete?.name}"</span>? การกระทำนี้ไม่สามารถย้อนกลับได้
+      </ConfirmationModal>
+
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-        {/* ฝั่ง Form (ซ้าย) */}
         <div className="md:col-span-5">
-          <div className="bg-white border rounded-2xl p-4 shadow-sm sticky top-24">
-            <div className="font-semibold text-blue-700 mb-3">
-              {editingProduct ? 'แก้ไขสินค้า' : (form.id === undefined && form.code ? 'คัดลอกสินค้า (ชิ้นใหม่)' : 'สร้างสินค้า')}
-            </div>
-            {/* ... ส่วนฟอร์ม input เหมือนเดิม ... */}
+          <div className="bg-white border rounded-2xl p-4 shadow-sm">
+            <div className="font-semibold text-blue-700 mb-3">{editingProduct ? 'แก้ไขสินค้า' : 'สร้างสินค้า'}</div>
             <form onSubmit={submit} className="space-y-3">
-              {/* ... input ต่างๆ (code, name, unit, etc.) ... */}
-              {/* (ผมตัดทอนเพื่อความสั้น แต่ให้คงโค้ดในฟอร์มเดิมของคุณบูมไว้ทั้งหมดครับ) */}
               <Labeled label="รหัสสินค้า">
                 <div className="flex gap-2">
-                  <input className="input w-full text-base" value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} />
-                  <button type="button" onClick={() => setScanOpen(true)} className="px-3 py-2 rounded-lg border bg-gray-50 text-3xl">⛶</button>
+                  <input
+                    className="input w-full text-base"
+                    value={form.code}
+                    onChange={e => setForm({ ...form, code: e.target.value })}
+                    placeholder="SKU0001"
+                  />
+                  <button type="button" onClick={() => setScanOpen(true)} className="px-3 py-2 rounded-lg border bg-gray-50 hover:bg-gray-100 text-3xl">⛶</button>
                 </div>
               </Labeled>
-              {/* ... ลากยาวไปจนถึงปุ่ม Save ... */}
+              <Labeled label="ชื่อสินค้า">
+                <input className="input w-full text-base" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="เช่น น้ำดื่ม 500ml" />
+              </Labeled>
+
+
+<Labeled label="รายละเอียดสินค้า">
+  <textarea
+    className="input w-full text-base"
+    rows={3}
+    placeholder="วัสดุ/สี/ขนาด/สเปก หรือรายละเอียดอื่น ๆ"
+    value={form.description}
+    onChange={e => setForm({ ...form, description: e.target.value })}
+  />
+</Labeled>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Labeled label="หน่วยนับ">
+                  <input className="input w-full text-base" value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} placeholder="เช่น ชิ้น" />
+                </Labeled>
+                <Labeled label="ขั้นต่ำเตือน">
+                  <input type="number" className="input w-full text-base" value={form.min_qty_alert} onChange={e => setForm({ ...form, min_qty_alert: e.target.value })} placeholder="5" />
+                </Labeled>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Labeled label="ราคาซื้อ">
+                  <input type="number" className="input w-full text-base" value={form.buy_price} onChange={e => setForm({ ...form, buy_price: e.target.value })} placeholder="80" />
+                </Labeled>
+                <Labeled label="ราคาขาย">
+                  <input type="number" className="input w-full text-base" value={form.sell_price} onChange={e => setForm({ ...form, sell_price: e.target.value })} placeholder="120" />
+                </Labeled>
+              </div>
+              <Labeled label="ตัวเลือกย่อย (เช่น ขนาด, สี)">
+  <div className="space-y-2 p-3 bg-gray-50 border rounded-xl">
+    {(form.attributes || []).map((attr, i) => (
+      <div key={i} className="flex items-center gap-2">
+        <input 
+          className="input w-1/2 text-sm" 
+          placeholder="ชื่อ (เช่น Size)" 
+          value={attr.name} 
+          onChange={e => {
+            const newAttr = [...form.attributes];
+            newAttr[i].name = e.target.value;
+            setForm({ ...form, attributes: newAttr });
+          }} 
+        />
+        <input 
+          className="input w-1/2 text-sm" 
+          placeholder="ค่า (เช่น 8.5 us)" 
+          value={attr.value} 
+          onChange={e => {
+            const newAttr = [...form.attributes];
+            newAttr[i].value = e.target.value;
+            setForm({ ...form, attributes: newAttr });
+          }} 
+        />
+        <button 
+          type="button" 
+          onClick={() => {
+            setForm({
+              ...form, 
+              attributes: form.attributes.filter((_, idx) => idx !== i)
+            });
+          }} 
+          className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+          title="ลบตัวเลือก"
+        >
+          ✕
+        </button>
+      </div>
+    ))}
+    <button 
+      type="button" 
+      onClick={() => setForm({
+        ...form, 
+        attributes: [...(form.attributes || []), { name: '', value: '' }]
+      })} 
+      className="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1 mt-1"
+    >
+      + เพิ่มตัวเลือก
+    </button>
+  </div>
+</Labeled>
               <div className="flex flex-col space-y-2 pt-2">
                 <button disabled={busy} className="w-full h-11 btn-primary">
-                  {busy ? 'กำลังบันทึก...' : (editingProduct ? 'อัปเดตข้อมูล' : 'บันทึกรายการใหม่')}
+                  {busy ? 'กำลังบันทึก...' : (editingProduct ? 'อัปเดตข้อมูล' : 'บันทึก')}
                 </button>
-                {(editingProduct || (form.id === undefined && form.code)) && (
+                {editingProduct && (
                   <button type="button" onClick={handleCancelEdit} className="w-full text-center text-sm text-gray-600 hover:underline">
-                    ยกเลิก / ล้างฟอร์ม
+                    ยกเลิกการแก้ไข
                   </button>
                 )}
               </div>
@@ -430,47 +652,161 @@ function ProductTab() {
           </div>
         </div>
 
-        {/* ฝั่ง List (ขวา) */}
-        <div className="md:col-span-7">
+        {/* Modal สแกน: เมื่ออ่านได้ จะค้นหาใน products แล้วโหลดขึ้นฟอร์มแก้ไข */}
+        <QRScanner
+          open={scanOpen}
+          onClose={() => setScanOpen(false)}
+          onDetected={(val) => {
+            const list = Array.isArray(products) ? products : [];
+            const found = list.find(p => p.code === val || p.barcode === val);
+            if (found) {
+              setEditingProduct(found);
+              setForm(found);
+            } else {
+              setForm(f => ({ ...f, code: val }));
+              alert(`ไม่พบสินค้าในระบบสำหรับรหัส: ${val}`);
+            }
+          }}
+        />
+
+  <div className="md:col-span-7">
           <div className="bg-white border rounded-2xl p-4 shadow-sm">
-            {/* ... ส่วน Search ... */}
-            <div className="space-y-3 max-h-[700px] overflow-auto pb-4">
+          <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="font-semibold text-blue-700">
+            รายการสินค้า&nbsp;&nbsp;
+                <span className="text-xs text-gray-500">
+            แสดง {productsFiltered.length}{pQ ? ` จาก ${baseList.length}` : ''} รายการ
+               </span>
+  </div>
+{/* ✅ เรียกโมดอลที่นี่ (นอกตัวมันเอง) */}
+<ManageImagesModal
+  productId={imageMgrId}
+  open={!!imageMgrId}
+  onClose={() => {
+    setImageMgrId(null);
+    refreshProducts(); // โหลด cover_image ให้ใหม่
+  }}
+/>
+
+
+</div>
+
+
+            <div className="relative ml-auto mb-4">   {/* เพิ่ม mb-4 */}
+
+              <input
+                value={pQuery}
+                onChange={(e)=>setPQuery(e.target.value)}
+                placeholder="ค้นหา SKU / ชื่อ"
+                className="text-base w-60 md:w-80 rounded-xl border pl-10 pr-10 py-2 outline-none focus:ring-2 focus:ring-blue-600"
+              />
+              {pQuery && (
+                <button
+                  onClick={()=>setPQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-900"
+                  aria-label="clear"
+                >×</button>
+              )}
+
+
+
+&nbsp;&nbsp;
+  <button
+    onClick={refreshProducts}
+    disabled={reloading}
+    className="text-xs px-3 py-1.5 rounded-xl border bg-gray-50 hover:bg-gray-100 disabled:opacity-60"
+    title="โหลดรายการใหม่"
+  >
+    โหลดใหม่ {reloading ? 'กำลังโหลด...' : ''}
+  </button>
+            </div>
+
+            {loading && <div>กำลังโหลด...</div>}
+            {error && <div className="text-red-600">โหลดข้อมูลไม่สำเร็จ</div>}
+
+            <div className="space-y-3 max-h-[540px] overflow-auto pb-4">
+
               {productsView.map(p => (
-                <div key={p.id} className="grid grid-cols-[56px_minmax(0,1fr)_100px] gap-3 px-3 py-3 border rounded-xl bg-white overflow-hidden">
-                  <div className="shrink-0">
-                    {(p.cover_image || p.image_url) ? <img src={p.cover_image || p.image_url} className="w-12 h-12 rounded-lg object-cover border" /> : <div className="w-12 h-12 rounded-lg bg-gray-100 border flex items-center justify-center">📦</div>}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-xs truncate">{p.name}</div>
-                    <div className="text-xs text-gray-500 truncate">{p.code} • {p.unit}</div>
-                    {/* แสดง Attribute เล็กๆ ให้เห็นว่ามีตัวเลือกอะไรบ้าง */}
-                    {p.attributes?.length > 0 && (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {p.attributes.map((a, idx) => (
-                          <span key={idx} className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100">
-                            {a.name}: {a.value}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-xs font-bold text-blue-700">฿{p.sell_price}</div>
-                    <div className="mt-2 flex flex-col items-end gap-1">
-                      {/* 🌟 ปุ่มคัดลอก (Clone) */}
-                      <button onClick={() => handleClone(p)} className="text-xs font-medium text-amber-600 hover:underline">
-                        คัดลอก
-                      </button>
-                      <button onClick={() => handleEdit(p)} className="text-xs font-medium text-blue-600 hover:underline">
-                        แก้ไข
-                      </button>
-                      <button onClick={() => handleDelete(p)} className="text-xs font-medium text-red-600 hover:underline">
-                        ลบ
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+  <div
+    key={p.id}
+    className="grid grid-cols-[56px_minmax(0,1fr)_96px] gap-3 px-3 py-3 border rounded-xl bg-white overflow-hidden"
+  >
+    {/* รูปสินค้า */}
+    <div className="shrink-0">
+      {(p.cover_image || p.image_url) ? (
+        <img
+          src={p.cover_image || p.image_url}
+          className="w-12 h-12 rounded-lg object-cover border"
+          alt=""
+        />
+      ) : (
+        <div className="w-12 h-12 rounded-lg bg-gray-100 border flex items-center justify-center">
+          📦
+        </div>
+      )}
+    </div>
+
+    {/* ข้อมูลสินค้า */}
+    <div className="min-w-0">
+      <div className="font-semibold text-xs truncate">
+        {p.name}
+      </div>
+
+      <div className="text-xs text-gray-500 truncate">
+        {p.code} • หน่วย {p.unit}
+      </div>
+
+      {p.description && (
+        <div className="mt-1 text-[11px] text-gray-500 leading-snug line-clamp-2 break-words">
+          {p.description}
+        </div>
+      )}
+    </div>
+
+    {/* ราคา / action */}
+    <div className="text-right shrink-0 min-w-0">
+      <div className="text-xs whitespace-nowrap">
+        ซื้อ {p.buy_price}
+      </div>
+
+      <div className="text-xs whitespace-nowrap">
+        ขาย {p.sell_price}
+      </div>
+
+      <div
+        className={
+          "text-xs whitespace-nowrap " +
+          (p.stock <= p.min_qty_alert ? "text-red-600" : "text-gray-400")
+        }
+      >
+        คงเหลือ {Number(p.stock ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+      </div>
+
+      <div className="mt-2 flex flex-col items-end gap-1">
+        <button
+          onClick={() => setImageMgrId(p.id)}
+          className="text-xs font-medium text-indigo-600 hover:underline"
+        >
+          รูปภาพ
+        </button>
+
+        <button
+          onClick={() => handleEdit(p)}
+          className="text-xs font-medium text-blue-600 hover:underline"
+        >
+          แก้ไข
+        </button>
+
+        <button
+          onClick={() => handleDelete(p)}
+          className="text-xs font-medium text-red-600 hover:underline"
+        >
+          ลบ
+        </button>
+      </div>
+    </div>
+  </div>
+))}
             </div>
           </div>
         </div>
