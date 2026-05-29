@@ -1997,9 +1997,17 @@ function BillsPage() {
 // --- Main App Component ---
 export default function App() {
   const [tab, setTab] = useState(0);
-  const mainTabLabels = ['สินค้า', 'ขาย', 'ซื้อ', 'คงเหลือ'];
-  const reportTabLabels = ['บิล', 'รายงานขาย', 'รายงานซื้อ'];
+const mainTabLabels = ['สินค้า', 'ขาย', 'ซื้อ', 'คงเหลือ'];
+const reportTabLabels = ['บิล', 'รายงานขาย', 'รายงานซื้อ'];
 
+const topNavButtons = [
+  { tab: 98, icon: '🏪', label: 'ร้านค้า' },
+  { tab: 100, icon: '⭐', label: 'รีวิว' },
+  { tab: 99, icon: '🚚', label: 'ค่าขนส่ง' },
+  { tab: 4, icon: '🧾', label: 'บิล' },
+  { tab: 5, icon: '📈', label: 'รายงานขาย' },
+  { tab: 6, icon: '📊', label: 'รายงานซื้อ' },
+];
 
   return (
     <>
@@ -2012,40 +2020,25 @@ export default function App() {
         <header className="sticky top-0 z-40 bg-green-50/95 backdrop-blur border-b border-green-200">
           <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="text-xl font-extrabold">St8ck</div>
-            <div className="flex items-center gap-4 text-sm">
-
-<button
-  onClick={() => setTab(98)}
-  className={tab===98 ? "font-semibold text-green-800" : "text-slate-500 hover:text-green-700"}
->
-  ร้านค้า
-</button>
-
-<button
-  onClick={() => setTab(100)}
-  className={tab===100 ? "font-semibold text-green-800" : "text-slate-500 hover:text-green-700"}
->
-  รีวิว
-</button>
-
- <button
-   onClick={() => setTab(99)}
-   className={tab===99 ? "font-semibold text-green-800" : "text-slate-500 hover:text-green-700"}
- >
-   ค่าขนส่ง
- </button>
-
-
-              {reportTabLabels.map((label, index) => (
-                <button
-                  key={index}
-                  onClick={() => setTab(mainTabLabels.length + index)}
-                  className={tab === mainTabLabels.length + index ? "font-semibold text-green-800" : "text-slate-500 hover:text-green-700"}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <div className="flex items-center gap-2 text-sm">
+  {topNavButtons.map((item) => (
+    <button
+      key={item.tab}
+      type="button"
+      onClick={() => setTab(item.tab)}
+      title={item.label}
+      aria-label={item.label}
+      className={
+        "h-9 w-9 rounded-xl border text-lg transition flex items-center justify-center " +
+        (tab === item.tab
+          ? "bg-green-700 text-white border-green-700 shadow-sm"
+          : "bg-white text-slate-600 border-green-200 hover:bg-green-50 hover:text-green-800")
+      }
+    >
+      <span aria-hidden="true">{item.icon}</span>
+    </button>
+  ))}
+</div>
           </div>
         </header>
 
