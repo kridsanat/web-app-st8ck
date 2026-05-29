@@ -245,6 +245,10 @@ app.post('/api/products', async (req, res) => {
 app.get('/api/products', async (req,res)=>{
   const r = await query(`
     SELECT p.*,
+      -- เพิ่มบรรทัดนี้กลับเข้ามา เพื่อดึงรูปหน้าปก 1 รูปไปแสดงในหน้า Admin
+      (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY sort_order ASC, id ASC LIMIT 1) AS cover_image,
+      
+      -- ส่วนนี้ดึงรูปทั้งหมดเป็น Array ไปแสดงในหน้าจอแกลลอรี่ของลูกค้า
       COALESCE(
         (
           SELECT json_agg(
@@ -266,7 +270,6 @@ app.get('/api/products', async (req,res)=>{
   `);
   res.json(r.rows);
 });
-
 
 // ตัวอย่าง: detail (มี images)
 app.get('/api/products/:id', async (req, res) => {
