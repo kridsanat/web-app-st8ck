@@ -58,41 +58,32 @@ function useCart() {
     safeWriteCart(items);
   }, [items]);
 
-  const getCartId = (p) => {
-    if (!p.selectedOpts || Object.keys(p.selectedOpts).length === 0) return String(p.id);
-    const opts = Object.keys(p.selectedOpts).sort().map(k => `${k}=${p.selectedOpts[k]}`).join('&');
-    return `${p.id}_${opts}`;
-  };
-
+  // ระบบใหม่: แอดเข้าตะกร้าด้วย ID สินค้าย่อยตรงๆ ได้เลย เพราะ DB แยกกันแล้ว
   const add = (p, qty = 1) =>
     setItems((prev) => {
-      const cid = getCartId(p);
-      const f = prev.find((x) => x.cart_id === cid || (!x.cart_id && x.id === p.id));
+      const f = prev.find((x) => x.id === p.id);
       if (f)
         return prev.map((x) =>
-          (x.cart_id === cid || (!x.cart_id && x.id === p.id))
-            ? {
-                ...x,
-                qty: clamp(x.qty + qty, 1, typeof p.stock_qty === "number" ? p.stock_qty : 999),
-              }
+          x.id === p.id
+            ? { ...x, qty: clamp(x.qty + qty, 1, typeof p.stock_qty === "number" ? p.stock_qty : 999) }
             : x
         );
       return [
         ...prev,
-        { ...p, cart_id: cid, qty: clamp(qty, 1, typeof p.stock_qty === "number" ? p.stock_qty : 999) },
+        { ...p, qty: clamp(qty, 1, typeof p.stock_qty === "number" ? p.stock_qty : 999) },
       ];
     });
 
-  const setQty = (cart_id, qty) =>
+  const setQty = (id, qty) =>
     setItems((prev) =>
       prev.map((x) =>
-        (x.cart_id === cart_id || x.id === cart_id)
+        x.id === id
           ? { ...x, qty: clamp(qty, 1, typeof x.stock_qty === "number" ? x.stock_qty : 999) }
           : x
       )
     );
 
-  const remove = (cart_id) => setItems((prev) => prev.filter((x) => x.cart_id !== cart_id && x.id !== cart_id));
+  const remove = (id) => setItems((prev) => prev.filter((x) => x.id !== id));
   const clear = () => setItems([]);
 
   const totals = useMemo(() => {
@@ -106,19 +97,6 @@ function useCart() {
 const FallbackIcon = () => (
   <div className="h-full w-full grid place-items-center text-3xl">📦</div>
 );
-
-function StockBadge({ qty }) {
-  if (typeof qty !== 'number') return null;
-  const isOut = qty <= 0;
-  return (
-    <div className={
-      "absolute left-2 top-2 rounded-full px-2 py-0.5 text-xs font-medium shadow " +
-      (isOut ? "bg-red-600 text-white" : "bg-white/90 text-gray-900")
-    }>
-      {isOut ? "หมดสต๊อก" : `คงเหลือ ${qty}`}
-    </div>
-  );
-}
 
 function ShopHero() {
   const [shop, setShop] = React.useState(null);
@@ -137,8 +115,7 @@ function ShopHero() {
     })();
   }, []);
 
-  if (err) return null;
-  if (!shop) return null;
+  if (err || !shop) return null;
 
   const banner = normalizeImage(shop.banner_url);
   const raw = (shop.banner_link || '').trim();
@@ -146,30 +123,26 @@ function ShopHero() {
   
   return (
     <section className="mx-auto max-w-6xl mb-4">
-    {banner && (
-      <div className="w-full mb-3 overflow-hidden rounded-2xl border bg-gray-50">
-        {href ? (
-          <a href={href} target="_blank" rel="noopener noreferrer">
+      {banner && (
+        <div className="w-full mb-3 overflow-hidden rounded-2xl border bg-gray-50">
+          {href ? (
+            <a href={href} target="_blank" rel="noopener noreferrer">
+              <img src={banner} alt="" className="w-full object-cover" onError={(e)=>{ e.currentTarget.remove(); }} />
+            </a>
+          ) : (
             <img src={banner} alt="" className="w-full object-cover" onError={(e)=>{ e.currentTarget.remove(); }} />
-          </a>
-        ) : (
-          <img src={banner} alt="" className="w-full object-cover" onError={(e)=>{ e.currentTarget.remove(); }} />
-        )}
-      </div>
+          )}
+        </div>
       )}
-
       <div className="flex items-start gap-3">
         <div className="min-w-0">
           <div className="text-lg font-semibold truncate">{shop?.name || ''}</div>
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
             {shop.open_hours && <span>เวลาเปิด: {shop.open_hours}</span>}
           </div>
-          {shop.tagline && (
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">{shop.tagline}</div>
-          )}
+          {shop.tagline && <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">{shop.tagline}</div>}
         </div>
       </div>
-
       {shop.line_id && <div className="mt-1 text-xs text-gray-600 whitespace-pre-wrap break-words">LINE: {shop.line_id}</div>}
       {shop.facebook && <div className="mt-1 text-xs text-gray-600 whitespace-pre-wrap break-words">FB: {shop.facebook}</div>}
       {shop.phone && <div className="mt-1 text-xs text-gray-600 whitespace-pre-wrap break-words">TEL: {shop.phone}</div>}
@@ -182,11 +155,7 @@ function ShopHero() {
 function ProductImageCarousel({ images = [], onOpen }) {
   const list = images.length ? images : [];
   if (!list.length) {
-    return (
-      <div className="aspect-[2/3] sm:aspect-[3/4] w-full overflow-hidden rounded-xl bg-gray-50">
-        <FallbackIcon />
-      </div>
-    );
+    return <div className="aspect-[2/3] sm:aspect-[3/4] w-full overflow-hidden rounded-xl bg-gray-50"><FallbackIcon /></div>;
   }
   return (
     <div className="relative">
@@ -205,9 +174,7 @@ function ProductImageCarousel({ images = [], onOpen }) {
 
 function extractImages(obj) {
   if (!obj) return [];
-  if (Array.isArray(obj.images)) {
-    return obj.images.map(im => (typeof im === "string" ? im : im?.image_url)).filter(Boolean);
-  }
+  if (Array.isArray(obj.images)) return obj.images.map(im => (typeof im === "string" ? im : im?.image_url)).filter(Boolean);
   const cover = obj.cover_image || obj.image_url;
   return cover ? [cover] : [];
 }
@@ -245,69 +212,25 @@ function ImageLightbox({ images = [], index = 0, onClose }) {
 }
 
 function ProductCard({ p, onAdd }) {
-  const [imgs, setImgs] = React.useState(() => extractImages(p));
-  React.useEffect(() => { setImgs(extractImages(p)); }, [p]);
-
-  React.useEffect(() => {
-    if (!p?.id || imgs.length > 1) return;
-    (async () => {
-      try {
-        const r = await fetch(`${API}/api/products/${p.id}`);
-        if (!r.ok) return;
-        const detail = await r.json();
-        const more = extractImages(detail);
-        if (more.length > imgs.length) setImgs(more);
-      } catch {}
-    })();
-  }, [p?.id, imgs.length]);
-
+  const [imgs, setImgs] = React.useState(() => p.images || []);
   const [lbOpen, setLbOpen]   = React.useState(false);
   const [lbIndex, setLbIndex] = React.useState(0);
-  const [selectedOpts, setSelectedOpts] = React.useState({});
+  
+  // จัดการ state ของ Dropdown
+  const [selectedVid, setSelectedVid] = React.useState("");
 
-  const qty = toNum(p.stock_qty);
-  const rawAttrs = p.attributes || [];
+  // ค้นหาสินค้าย่อยที่ถูกเลือกจาก Dropdown
+  const selectedV = p.isGroup ? p.variants.find(x => String(x.id) === String(selectedVid)) : p;
 
-  // 🌟 ฟังก์ชันใหม่: จัดกลุ่มข้อมูล (แก้ปัญหา Dropdown ซ้ำซ้อนและไม่มีตัวเลือก)
-  const displayAttrs = React.useMemo(() => {
-    if (!Array.isArray(rawAttrs) || rawAttrs.length === 0) return [];
-    
-    // ถ้าข้อมูลถูกจับกลุ่มมาแล้ว (มี options เป็น Array) ก็ใช้งานได้เลย
-    if (rawAttrs.some(a => Array.isArray(a.options))) {
-      return rawAttrs;
-    }
-
-    // ถ้าข้อมูลมาแบบแยกชิ้น (เช่น {name: 'ขนาด', value: '38'}, {name: 'ขนาด', value: '39'}) ให้จับมัดรวมกัน
-    const groups = {};
-    rawAttrs.forEach(a => {
-      const attrName = a.name || a.attr_name || a.key;
-      if (!attrName) return;
-
-      if (!groups[attrName]) groups[attrName] = new Set();
-      
-      // ดึงค่า value มาใส่ในกลุ่ม (รองรับฟิลด์หลายรูปแบบที่หลังบ้านอาจจะส่งมา)
-      const val = a.value ?? a.val ?? a.attr_value ?? a.option;
-      if (val !== undefined && val !== null && String(val).trim() !== "") {
-        groups[attrName].add(String(val));
-      }
-    });
-
-    // แปลงกลับเป็น Array และซ่อนกลุ่มที่ไม่มีตัวเลือกจริงๆ ออกไป
-    return Object.keys(groups)
-      .map(k => ({ name: k, options: Array.from(groups[k]) }))
-      .filter(g => g.options.length > 0);
-  }, [rawAttrs]);
+  const currentQty = selectedV ? toNum(selectedV.stock_qty) : p.totalStock;
+  const displayPriceText = selectedV ? toMoney(selectedV.price) : p.displayPrice;
 
   const handleAdd = () => {
-    // บังคับว่าต้องเลือกตัวเลือกให้ครบก่อน ถึงจะลงตะกร้าได้
-    if (displayAttrs.length > 0) {
-      const missing = displayAttrs.filter(a => !selectedOpts[a.name]);
-      if (missing.length > 0) {
-        alert(`กรุณาเลือก: ${missing.map(m => m.name).join(', ')}`);
-        return;
-      }
+    if (p.isGroup && !selectedV) {
+      alert("กรุณาเลือกตัวเลือกสินค้าก่อนหยิบลงตะกร้า");
+      return;
     }
-    onAdd({ ...p, selectedOpts });
+    onAdd(selectedV); // ส่งสินค้าย่อยที่เลือกไปลงตะกร้า (ID จะตรงกับ DB เลย)
   };
 
   return (
@@ -315,9 +238,9 @@ function ProductCard({ p, onAdd }) {
       <div className="relative shrink-0">
         <ProductImageCarousel images={imgs} onOpen={(i) => { setLbIndex(i); setLbOpen(true); }} />
         {lbOpen && <ImageLightbox images={imgs} index={lbIndex} onClose={() => setLbOpen(false)} />}
-        {qty !== undefined && (
-          <div className={"absolute left-2 top-2 z-10 rounded-full px-2 py-0.5 text-xs font-medium shadow " + (qty <= 0 ? "bg-red-600 text-white" : "bg-white/90 text-gray-900")}>
-            {qty <= 0 ? "หมดสต๊อก" : `คงเหลือ ${qty}`}
+        {currentQty !== undefined && (
+          <div className={"absolute left-2 top-2 z-10 rounded-full px-2 py-0.5 text-xs font-medium shadow " + (currentQty <= 0 ? "bg-red-600 text-white" : "bg-white/90 text-gray-900")}>
+            {currentQty <= 0 ? "หมดสต๊อก" : `คงเหลือ ${currentQty}`}
           </div>
         )}
       </div>
@@ -325,25 +248,36 @@ function ProductCard({ p, onAdd }) {
       <div className="mt-3 flex flex-col flex-1">
         <div className="text-xs text-gray-500">{p.sku}</div>
         <div className="mt-3 text-xs font-semibold leading-snug">{p.name}</div>
-        <div className="mt-1 text-lg">฿{toMoney(p.price)}</div>
+        <div className="mt-1 text-lg">฿{displayPriceText}</div>
 
-        {/* ⬇️ แสดงผล Dropdown ที่ถูกจัดกลุ่มเรียบร้อยแล้ว */}
-        {displayAttrs.length > 0 && (
+        {/* ถ้ามีหลายตัวเลือก (Grouped) ให้แสดง Dropdown เดียว */}
+        {p.isGroup && (
           <div className="mt-3 space-y-2">
-            {displayAttrs.map((attr, idx) => (
-              <div key={idx}>
-                <select
-                  className="w-full border rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-gray-300"
-                  value={selectedOpts[attr.name] || ''}
-                  onChange={(e) => setSelectedOpts(prev => ({...prev, [attr.name]: e.target.value}))}
-                >
-                  <option value="">-- เลือก {attr.name} --</option>
-                  {attr.options.map((opt, i) => (
-                    <option key={i} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </div>
-            ))}
+            <select
+              className="w-full border rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-gray-300 bg-gray-50"
+              value={selectedVid}
+              onChange={(e) => setSelectedVid(e.target.value)}
+            >
+              <option value="">-- เลือกรูปแบบ --</option>
+              {p.variants.map((v) => {
+                let label = "";
+                
+                // ดึงค่าจาก Attributes มาโชว์ (ถ้ามี)
+                const attrs = Array.isArray(v.attributes) ? v.attributes : [];
+                if (attrs.length > 0) {
+                  label = attrs.map(a => a.value || a.val || a.option || a.options?.[0] || '').filter(Boolean).join(', ');
+                }
+                
+                // ถ้าไม่มี Attribute ให้ใช้ SKU หรือ ชื่อแทน
+                if (!label && v.sku) label = `รหัส: ${v.sku}`;
+                if (!label) label = v.name;
+
+                const st = toNum(v.stock_qty);
+                if (st !== undefined) label += ` (เหลือ ${st})`;
+
+                return <option key={v.id} value={v.id} disabled={st !== undefined && st <= 0}>{label}</option>
+              })}
+            </select>
           </div>
         )}
 
@@ -356,10 +290,10 @@ function ProductCard({ p, onAdd }) {
         <div className="mt-auto pt-3">
           <button
             className="w-full rounded-xl border px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
-            disabled={qty !== undefined && qty <= 0}
+            disabled={currentQty !== undefined && currentQty <= 0}
             onClick={handleAdd}
           >
-            {qty !== undefined && qty <= 0 ? 'หมดสต๊อก' : '+ เพิ่มลงตะกร้า'}
+            {currentQty !== undefined && currentQty <= 0 ? 'หมดสต๊อก' : '+ เพิ่มลงตะกร้า'}
           </button>
         </div>
       </div>
@@ -367,10 +301,7 @@ function ProductCard({ p, onAdd }) {
   );
 }
 
-function CartDrawer({
-  open, onClose, cart, onCheckout,
-  shipMethods, shipping, setShipping, computeShipFee
-}) {
+function CartDrawer({ open, onClose, cart, onCheckout, shipMethods, shipping, setShipping, computeShipFee }) {
   const { items, setQty, remove, totals } = cart;
   const grand = totals.subtotal + Number(shipping?.fee || 0);
 
@@ -386,7 +317,7 @@ function CartDrawer({
           <div className="flex-1 overflow-auto p-3 space-y-3">
             {items.length === 0 && <div className="py-10 text-center text-gray-500">ยังไม่มีสินค้าในตะกร้า</div>}
             {items.map((it) => (
-              <div key={it.cart_id || it.id} className="flex items-center gap-3 rounded-xl border p-2">
+              <div key={it.id} className="flex items-center gap-3 rounded-xl border p-2">
                 <div className="h-14 w-14 rounded-lg bg-gray-50 overflow-hidden relative">
                   <div className="absolute inset-0 flex items-center justify-center"><FallbackIcon /></div>
                   {normalizeImage(it.image_url) && (
@@ -396,19 +327,20 @@ function CartDrawer({
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm text-gray-500">{it.sku}</div>
                   <div className="truncate font-medium">{it.name}</div>
-                  {it.selectedOpts && Object.keys(it.selectedOpts).length > 0 && (
+                  {/* แสดง Attributes ใต้ชื่อสินค้าในตะกร้า */}
+                  {Array.isArray(it.attributes) && it.attributes.length > 0 && (
                     <div className="text-xs text-blue-600 mb-1">
-                      {Object.entries(it.selectedOpts).map(([k, v]) => `${k}: ${v}`).join(' | ')}
+                      {it.attributes.map(a => `${a.name || ''}: ${a.value || a.val || a.options?.[0] || ''}`).join(' | ')}
                     </div>
                   )}
                   <div className="text-sm">฿{toMoney(it.price)} × {it.qty} = <b>฿{toMoney(it.price * it.qty)}</b></div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button className="rounded-lg border px-2 py-1 text-sm" onClick={() => setQty(it.cart_id || it.id, clamp(it.qty - 1, 1, typeof it.stock_qty === "number" ? it.stock_qty : 999))}>−</button>
-                  <input type="number" min={1} max={typeof it.stock_qty === "number" ? it.stock_qty : 999} value={it.qty} onChange={(e) => setQty(it.cart_id || it.id, clamp(parseInt(e.target.value || "1", 10), 1, typeof it.stock_qty === "number" ? it.stock_qty : 999))} className="w-14 rounded-lg border px-2 py-1 text-center text-sm" />
-                  <button className="rounded-lg border px-2 py-1 text-sm" onClick={() => setQty(it.cart_id || it.id, clamp(it.qty + 1, 1, typeof it.stock_qty === "number" ? it.stock_qty : 999))}>+</button>
+                  <button className="rounded-lg border px-2 py-1 text-sm" onClick={() => setQty(it.id, clamp(it.qty - 1, 1, typeof it.stock_qty === "number" ? it.stock_qty : 999))}>−</button>
+                  <input type="number" min={1} max={typeof it.stock_qty === "number" ? it.stock_qty : 999} value={it.qty} onChange={(e) => setQty(it.id, clamp(parseInt(e.target.value || "1", 10), 1, typeof it.stock_qty === "number" ? it.stock_qty : 999))} className="w-14 rounded-lg border px-2 py-1 text-center text-sm" />
+                  <button className="rounded-lg border px-2 py-1 text-sm" onClick={() => setQty(it.id, clamp(it.qty + 1, 1, typeof it.stock_qty === "number" ? it.stock_qty : 999))}>+</button>
                 </div>
-                <button className="rounded-lg border px-2 py-1 text-sm text-red-600" onClick={() => remove(it.cart_id || it.id)}>ลบ</button>
+                <button className="rounded-lg border px-2 py-1 text-sm text-red-600" onClick={() => remove(it.id)}>ลบ</button>
               </div>
             ))}
           </div>
@@ -455,163 +387,14 @@ function CartDrawer({
   );
 }
 
-function ReviewStars({ rating = 0 }) {
-  const n = Math.max(0, Math.min(5, Number(rating || 0)));
-  return <div className="text-sm text-amber-500">{'★'.repeat(n)}</div>;
-}
-
-function getYoutubeId(url = "") {
-  try {
-    const u = new URL(url);
-    if (u.hostname.includes("youtu.be")) return u.pathname.replace("/", "");
-    if (u.hostname.includes("youtube.com")) {
-      if (u.pathname.startsWith("/watch")) return u.searchParams.get("v");
-      if (u.pathname.startsWith("/shorts/")) return u.pathname.split("/")[2];
-      if (u.pathname.startsWith("/embed/")) return u.pathname.split("/")[2];
-    }
-  } catch (_) {}
-  return null;
-}
-
-function isDirectVideoUrl(url = "") {
-  return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
-}
-
-function VideoReviewModal({ item, onClose }) {
-  if (!item) return null;
-  const videoUrl = item.video_url || "";
-  const youtubeId = getYoutubeId(videoUrl);
-  const directVideo = isDirectVideoUrl(videoUrl);
-
-  return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-4">
-      <button type="button" onClick={onClose} className="absolute right-4 top-4 text-3xl text-white">×</button>
-      <div className="w-full max-w-4xl overflow-hidden rounded-2xl bg-black shadow-xl">
-        {youtubeId ? (
-          <iframe className="aspect-video w-full" src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1`} title={item.title || "video review"} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
-        ) : directVideo ? (
-          <video src={normalizeImage(videoUrl)} className="max-h-[85vh] w-full bg-black" controls autoPlay playsInline />
-        ) : (
-          <div className="bg-white p-6 text-center">
-            <div className="mb-3 font-semibold">ไม่สามารถเล่นวิดีโอในหน้านี้ได้</div>
-            <a href={videoUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">เปิดวิดีโอ</a>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function VideoReviewSection({ items = [] }) {
-  const [selectedVideo, setSelectedVideo] = React.useState(null);
-  const [page, setPage] = React.useState(1);
-  const itemsPerPage = 3; 
-  const totalPages = Math.ceil(items.length / itemsPerPage);
-  const currentItems = items.slice((page - 1) * itemsPerPage, page * itemsPerPage);
-
-  React.useEffect(() => { setPage(1); }, [items]);
-
-  if (!items.length) return null;
-
-  return (
-    <section className="mt-10">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">วิดีโอ</h2>
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {currentItems.map((item) => (
-          <button key={item.id} type="button" onClick={() => setSelectedVideo(item)} className="group overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition hover:shadow-md">
-            <div className="relative">
-              {item.thumbnail_url ? (
-                <img src={normalizeImage(item.thumbnail_url)} alt={item.title || "video review"} className="aspect-video w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-              ) : (
-                <div className="grid aspect-video w-full place-items-center bg-gray-100 text-gray-400">ไม่มีภาพปก</div>
-              )}
-              <div className="absolute inset-0 grid place-items-center bg-black/20 opacity-90 transition group-hover:bg-black/30">
-                <div className="grid h-12 w-12 place-items-center rounded-full bg-white/90 text-xl shadow pl-1">▶</div>
-              </div>
-            </div>
-            <div className="p-3">
-              <div className="line-clamp-2 text-sm font-semibold text-gray-800">{item.title || "วิดีโอรีวิว"}</div>
-              <div className="mt-1 text-xs text-gray-500">{item.platform || "video"}</div>
-            </div>
-          </button>
-        ))}
-      </div>
-      <div className="mt-6 flex items-center justify-start gap-3">
-        <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white">‹ ก่อนหน้า</button>
-        <span className="text-sm font-medium text-gray-600">หน้า {page} / {totalPages || 1}</span>
-        <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white">ถัดไป ›</button>
-      </div>
-      {selectedVideo && <VideoReviewModal item={selectedVideo} onClose={() => setSelectedVideo(null)} />}
-    </section>
-  );
-}
-
-function CustomerReviewSection({ items = [] }) {
-  const [lbOpen, setLbOpen] = React.useState(false);
-  const [lbImages, setLbImages] = React.useState([]);
-  const [lbIndex, setLbIndex] = React.useState(0);
-  const [page, setPage] = React.useState(1);
-  const itemsPerPage = 4;
-  const totalPages = Math.ceil(items.length / itemsPerPage);
-  const currentItems = items.slice((page - 1) * itemsPerPage, page * itemsPerPage);
-
-  const openLightbox = (imageUrl) => {
-    if (!imageUrl) return;
-    setLbImages([imageUrl]);
-    setLbIndex(0);
-    setLbOpen(true);
-  };
-
-  React.useEffect(() => { setPage(1); }, [items]);
-
-  if (!items.length) return null;
-
-  return (
-    <section className="mt-10">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">รีวิว</h2>
-      </div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4">
-        {currentItems.map((item) => (
-          <div key={item.id} className="w-full overflow-hidden rounded-2xl border bg-white shadow-sm">
-            {item.image_url ? (
-              <img src={normalizeImage(item.image_url)} alt={item.customer_name_mask || "review"} className="aspect-square w-full cursor-zoom-in object-cover" onClick={() => openLightbox(item.image_url)} onError={(e) => { e.currentTarget.style.display = "none"; }} />
-            ) : (
-              <div className="grid aspect-[3/4] w-full place-items-center bg-gray-100 text-gray-400">ไม่มีรูปรีวิว</div>
-            )}
-            <div className="p-3">
-              <div className="text-sm font-medium text-gray-900 line-clamp-1">{item.customer_name_mask || item.customer_name || "ลูกค้า"}</div>
-              <div className="mt-1 text-xs text-amber-500">{"★".repeat(Number(item.rating || 0))}</div>
-              {item.order_text && <div className="mt-1 text-xs text-gray-500 line-clamp-1">{item.order_text}</div>}
-              {item.comment && <div className="mt-1 text-xs text-gray-700 line-clamp-2">{item.comment}</div>}
-            </div>
-          </div>
-        ))}
-      </div>
-      {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-start gap-3">
-          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white">‹ ก่อนหน้า</button>
-          <span className="text-sm font-medium text-gray-600">หน้า {page} / {totalPages}</span>
-          <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white">ถัดไป ›</button>
-        </div>
-      )}
-      {lbOpen && <ImageLightbox images={lbImages} index={lbIndex} onClose={() => setLbOpen(false)} />}
-    </section>
-  );
-}
-
 function CheckoutModal({ open, onClose, cart, onSubmitted, shipping, shop }) {
   const { items, totals, clear } = cart;
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
   const [note, setNote] = useState("");
-
   const [slipFile, setSlipFile] = useState(null);
   const [slipPreview, setSlipPreview] = useState(null);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [ok, setOk] = useState(false);
@@ -671,7 +454,7 @@ function CheckoutModal({ open, onClose, cart, onSubmitted, shipping, shop }) {
                 <input className="w-full border rounded-xl p-2" placeholder="ชื่อ-นามสกุล" value={name} onChange={(e)=>setName(e.target.value)} />
                 <textarea className="w-full border rounded-xl p-2" rows={3} placeholder="ที่อยู่จัดส่ง" value={address} onChange={(e)=>setAddress(e.target.value)} />
                 <input className={`w-full border rounded-xl p-2 ${isValidPhoneTH(phone) ? "" : "ring-1 ring-red-500"}`} placeholder="0XXXXXXXXX" value={phone} onChange={(e)=>setPhone(e.target.value.replace(/\D/g,''))} />
-                <input className="w-full border rounded-xl p-2" placeholder="หมายเหตุ (ถ้ามี) เช่น ID: Line, Facebook, etc." value={note} onChange={(e)=>setNote(e.target.value)} />
+                <input className="w-full border rounded-xl p-2" placeholder="หมายเหตุ (ถ้ามี)" value={note} onChange={(e)=>setNote(e.target.value)} />
 
                 <div className="rounded-xl bg-gray-50 p-3">
                   <div className="mb-2 font-medium">ชำระเงิน</div>
@@ -728,6 +511,140 @@ function CheckoutModal({ open, onClose, cart, onSubmitted, shipping, shop }) {
   );
 }
 
+// ==== Reviews Sections ====
+function getYoutubeId(url = "") {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes("youtu.be")) return u.pathname.replace("/", "");
+    if (u.hostname.includes("youtube.com")) {
+      if (u.pathname.startsWith("/watch")) return u.searchParams.get("v");
+      if (u.pathname.startsWith("/shorts/")) return u.pathname.split("/")[2];
+      if (u.pathname.startsWith("/embed/")) return u.pathname.split("/")[2];
+    }
+  } catch (_) {}
+  return null;
+}
+function isDirectVideoUrl(url = "") { return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url); }
+
+function VideoReviewModal({ item, onClose }) {
+  if (!item) return null;
+  const videoUrl = item.video_url || "";
+  const youtubeId = getYoutubeId(videoUrl);
+  const directVideo = isDirectVideoUrl(videoUrl);
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-4">
+      <button type="button" onClick={onClose} className="absolute right-4 top-4 text-3xl text-white">×</button>
+      <div className="w-full max-w-4xl overflow-hidden rounded-2xl bg-black shadow-xl">
+        {youtubeId ? (
+          <iframe className="aspect-video w-full" src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1`} title={item.title || "video review"} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+        ) : directVideo ? (
+          <video src={normalizeImage(videoUrl)} className="max-h-[85vh] w-full bg-black" controls autoPlay playsInline />
+        ) : (
+          <div className="bg-white p-6 text-center">
+            <div className="mb-3 font-semibold">ไม่สามารถเล่นวิดีโอในหน้านี้ได้</div>
+            <a href={videoUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">เปิดวิดีโอ</a>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VideoReviewSection({ items = [] }) {
+  const [selectedVideo, setSelectedVideo] = React.useState(null);
+  const [page, setPage] = React.useState(1);
+  const itemsPerPage = 3; 
+  const totalPages = Math.ceil(items.length / itemsPerPage);
+  const currentItems = items.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
+  React.useEffect(() => { setPage(1); }, [items]);
+  if (!items.length) return null;
+
+  return (
+    <section className="mt-10">
+      <div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-semibold text-gray-900">วิดีโอ</h2></div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {currentItems.map((item) => (
+          <button key={item.id} type="button" onClick={() => setSelectedVideo(item)} className="group overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition hover:shadow-md">
+            <div className="relative">
+              {item.thumbnail_url ? (
+                <img src={normalizeImage(item.thumbnail_url)} alt={item.title || "video review"} className="aspect-video w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+              ) : (
+                <div className="grid aspect-video w-full place-items-center bg-gray-100 text-gray-400">ไม่มีภาพปก</div>
+              )}
+              <div className="absolute inset-0 grid place-items-center bg-black/20 opacity-90 transition group-hover:bg-black/30">
+                <div className="grid h-12 w-12 place-items-center rounded-full bg-white/90 text-xl shadow pl-1">▶</div>
+              </div>
+            </div>
+            <div className="p-3">
+              <div className="line-clamp-2 text-sm font-semibold text-gray-800">{item.title || "วิดีโอรีวิว"}</div>
+              <div className="mt-1 text-xs text-gray-500">{item.platform || "video"}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+      <div className="mt-6 flex items-center justify-start gap-3">
+        <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white">‹ ก่อนหน้า</button>
+        <span className="text-sm font-medium text-gray-600">หน้า {page} / {totalPages || 1}</span>
+        <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white">ถัดไป ›</button>
+      </div>
+      {selectedVideo && <VideoReviewModal item={selectedVideo} onClose={() => setSelectedVideo(null)} />}
+    </section>
+  );
+}
+
+function CustomerReviewSection({ items = [] }) {
+  const [lbOpen, setLbOpen] = React.useState(false);
+  const [lbImages, setLbImages] = React.useState([]);
+  const [lbIndex, setLbIndex] = React.useState(0);
+  const [page, setPage] = React.useState(1);
+  const itemsPerPage = 4;
+  const totalPages = Math.ceil(items.length / itemsPerPage);
+  const currentItems = items.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
+  const openLightbox = (imageUrl) => {
+    if (!imageUrl) return;
+    setLbImages([imageUrl]);
+    setLbIndex(0);
+    setLbOpen(true);
+  };
+
+  React.useEffect(() => { setPage(1); }, [items]);
+  if (!items.length) return null;
+
+  return (
+    <section className="mt-10">
+      <div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-semibold text-gray-900">รีวิว</h2></div>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4">
+        {currentItems.map((item) => (
+          <div key={item.id} className="w-full overflow-hidden rounded-2xl border bg-white shadow-sm">
+            {item.image_url ? (
+              <img src={normalizeImage(item.image_url)} alt={item.customer_name_mask || "review"} className="aspect-square w-full cursor-zoom-in object-cover" onClick={() => openLightbox(item.image_url)} onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            ) : (
+              <div className="grid aspect-[3/4] w-full place-items-center bg-gray-100 text-gray-400">ไม่มีรูปรีวิว</div>
+            )}
+            <div className="p-3">
+              <div className="text-sm font-medium text-gray-900 line-clamp-1">{item.customer_name_mask || item.customer_name || "ลูกค้า"}</div>
+              <div className="mt-1 text-xs text-amber-500">{"★".repeat(Number(item.rating || 0))}</div>
+              {item.order_text && <div className="mt-1 text-xs text-gray-500 line-clamp-1">{item.order_text}</div>}
+              {item.comment && <div className="mt-1 text-xs text-gray-700 line-clamp-2">{item.comment}</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-start gap-3">
+          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white">‹ ก่อนหน้า</button>
+          <span className="text-sm font-medium text-gray-600">หน้า {page} / {totalPages}</span>
+          <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white">ถัดไป ›</button>
+        </div>
+      )}
+      {lbOpen && <ImageLightbox images={lbImages} index={lbIndex} onClose={() => setLbOpen(false)} />}
+    </section>
+  );
+}
+
+// ==== Main App ====
 export default function OnlineShop() {
   const cart = useCart();
   const [openCart, setOpenCart] = useState(false);
@@ -850,7 +767,6 @@ export default function OnlineShop() {
         const reviewJSON = reviewRes.ok ? await reviewRes.json() : [];
 
         if (!alive) return;
-
         setVideoReviews(Array.isArray(videoJSON) ? videoJSON : []);
         setCustomerReviews(Array.isArray(reviewJSON) ? reviewJSON : []);
       } catch (e) {
@@ -862,17 +778,54 @@ export default function OnlineShop() {
     return () => { alive = false; };
   }, []);
 
-  const stockRank = (p) => {
-    const q = toNum(p.stock_qty);
-    if (q === undefined) return 1;
-    return q > 0 ? 0 : 2;
+  const stockRank = (qty) => {
+    if (qty === undefined) return 1;
+    return qty > 0 ? 0 : 2;
   };
 
-  const filtered = useMemo(() => {
+  // 🌟 หัวใจสำคัญของระบบ Grouping (มัดรวมสินค้าชื่อเดียวกันให้แสดงการ์ดเดียว)
+  const groupedProducts = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = !q ? products : products.filter(p => [p.name, p.sku].some(s => String(s ?? '').toLowerCase().includes(q)));
-    return list.slice().sort((a, b) => {
-      const r = stockRank(a) - stockRank(b);
+    
+    const groups = {};
+    list.forEach(p => {
+      const key = (p.name || '').trim(); // จับกลุ่มด้วยชื่อเป๊ะๆ
+      if (!groups[key]) groups[key] = { variants: [] };
+      groups[key].variants.push(p);
+    });
+    
+    return Object.values(groups).map(group => {
+      const base = group.variants[0];
+      const isGroup = group.variants.length > 1;
+      const allImgs = new Set();
+      let totalStock = 0;
+      let minP = Infinity, maxP = -Infinity;
+      let hasStockData = false;
+
+      group.variants.forEach(v => {
+        (v.images || []).forEach(img => allImgs.add(img));
+        const sq = toNum(v.stock_qty);
+        if (sq !== undefined) {
+          totalStock += sq;
+          hasStockData = true;
+        }
+        if (v.price < minP) minP = v.price;
+        if (v.price > maxP) maxP = v.price;
+      });
+
+      return {
+        ...base,
+        isGroup,
+        variants: group.variants,
+        images: Array.from(allImgs).length > 0 ? Array.from(allImgs) : base.images,
+        totalStock: hasStockData ? totalStock : undefined,
+        minPrice: minP,
+        maxPrice: maxP,
+        displayPrice: minP === maxP ? toMoney(minP) : `${toMoney(minP)} - ${toMoney(maxP)}`
+      };
+    }).sort((a, b) => {
+      const r = stockRank(a.totalStock) - stockRank(b.totalStock);
       if (r !== 0) return r;
       return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base', numeric: true });
     });
@@ -885,10 +838,7 @@ export default function OnlineShop() {
 
   async function reloadProducts() {
     try {
-      const [pr, sr] = await Promise.all([
-        fetch(`${API}/api/products`),
-        fetch(`${API}/api/stock`),
-      ]);
+      const [pr, sr] = await Promise.all([ fetch(`${API}/api/products`), fetch(`${API}/api/stock`) ]);
       if (!pr.ok) return;
       const productsJSON = await pr.json();
       const stockJSON = sr.ok ? await sr.json() : [];
@@ -899,11 +849,8 @@ export default function OnlineShop() {
         if (pid != null && n !== undefined) stockMap[pid] = n;
       }
       const normalized = (Array.isArray(productsJSON) ? productsJSON : []).map((p) => {
-        const imgs = Array.isArray(p.images)
-          ? p.images.map(im => (typeof im === "string" ? im : im?.image_url)).filter(Boolean)
-          : [p.cover_image || p.image_url].filter(Boolean);
+        const imgs = Array.isArray(p.images) ? p.images.map(im => (typeof im === "string" ? im : im?.image_url)).filter(Boolean) : [p.cover_image || p.image_url].filter(Boolean);
         const inProduct = toNum(p.stock ?? p.stock_qty);
-        const stock_qty = (inProduct !== undefined) ? inProduct : stockMap[p.id];
         return {
           id: p.id,
           sku: p.code ?? p.sku ?? "",
@@ -911,7 +858,7 @@ export default function OnlineShop() {
           price: Number(p.sell_price ?? p.price ?? 0),
           image_url: imgs[0] || "",
           images: imgs,
-          stock_qty,
+          stock_qty: (inProduct !== undefined) ? inProduct : stockMap[p.id],
           description: p.description || "",
           attributes: Array.isArray(p.attributes) ? p.attributes : (typeof p.attributes === 'string' ? JSON.parse(p.attributes || '[]') : []),
         };
@@ -922,15 +869,18 @@ export default function OnlineShop() {
 
   const submitOrder = async ({ name, address, phone, note, payment }) => {
     const items = cart.items.map(x => ({
-      product_id: x.id,
+      product_id: x.id, // ใช้ ID ตรงๆ เพื่อให้ตัดสต๊อกแม่นยำ
       qty: Number(x.qty || 1),
       price: Number(x.price),
     }));
 
-    const optionsNote = cart.items
-      .filter(x => x.selectedOpts && Object.keys(x.selectedOpts).length > 0)
-      .map(x => `- ${x.name}: ${Object.entries(x.selectedOpts).map(([k,v]) => `${k}=${v}`).join(', ')}`)
-      .join('\n');
+    // แปะข้อมูลตัวเลือกเพื่อให้อ่านง่ายๆ ในหลังบ้าน
+    const optionsNote = cart.items.map(x => {
+       const attrs = Array.isArray(x.attributes) ? x.attributes : [];
+       if (attrs.length === 0) return null;
+       const attrStr = attrs.map(a => `${a.name || ''}=${a.value || a.val || a.options?.[0] || ''}`).join(', ');
+       return `- ${x.name} [${x.sku}]: ${attrStr}`;
+    }).filter(Boolean).join('\n');
     
     const finalNote = [note, optionsNote].filter(Boolean).join('\n\n--- ข้อมูลย่อยสินค้าที่เลือก ---\n');
 
@@ -983,15 +933,11 @@ export default function OnlineShop() {
             <div className="relative w-56 sm:w-72 md:w-80">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">🔎</span>
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ค้นหาสินค้า / SKU" className="w-full rounded-xl border py-2 pl-9 pr-10 outline-none focus:ring-2 focus:ring-blue-600" />
-              {query && (
-                <button onClick={() => setQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-1 text-gray-500 hover:text-gray-900">×</button>
-              )}
+              {query && <button onClick={() => setQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-1 text-gray-500 hover:text-gray-900">×</button>}
             </div>
             <button onClick={() => setOpenCart(true)} className="relative rounded-xl border px-3 py-2 text-sm hover:bg-gray-50">
               ตะกร้า 🛒
-              {cart.items.length > 0 && (
-                <span className="absolute -right-2 -top-2 rounded-full bg-black px-2 py-0.5 text-xs text-white">{cart.items.length}</span>
-              )}
+              {cart.items.length > 0 && <span className="absolute -right-2 -top-2 rounded-full bg-black px-2 py-0.5 text-xs text-white">{cart.items.length}</span>}
             </button>
           </div>
         </div>
@@ -1008,7 +954,7 @@ export default function OnlineShop() {
               <h2 className="text-xl font-semibold text-gray-900">รายการสินค้า</h2>
             </div>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {filtered.map((p) => (
+              {groupedProducts.map((p) => (
                 <ProductCard key={p.id} p={p} onAdd={add} />
               ))}
             </div>
