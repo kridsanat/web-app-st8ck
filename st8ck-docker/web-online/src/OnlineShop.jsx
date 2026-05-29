@@ -675,10 +675,83 @@ function ReviewStars({ rating = 0 }) {
   const n = Math.max(0, Math.min(5, Number(rating || 0)));
   return <div className="text-sm text-amber-500">{'★'.repeat(n)}</div>;
 }
+function getYoutubeId(url = "") {
+  try {
+    const u = new URL(url);
 
+    if (u.hostname.includes("youtu.be")) {
+      return u.pathname.replace("/", "");
+    }
+
+    if (u.hostname.includes("youtube.com")) {
+      if (u.pathname.startsWith("/watch")) return u.searchParams.get("v");
+      if (u.pathname.startsWith("/shorts/")) return u.pathname.split("/")[2];
+      if (u.pathname.startsWith("/embed/")) return u.pathname.split("/")[2];
+    }
+  } catch (_) {}
+
+  return null;
+}
+
+function isDirectVideoUrl(url = "") {
+  return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
+}
+
+function VideoReviewModal({ item, onClose }) {
+  if (!item) return null;
+
+  const videoUrl = item.video_url || "";
+  const youtubeId = getYoutubeId(videoUrl);
+  const directVideo = isDirectVideoUrl(videoUrl);
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-4">
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute right-4 top-4 text-3xl text-white"
+      >
+        ×
+      </button>
+
+      <div className="w-full max-w-4xl overflow-hidden rounded-2xl bg-black shadow-xl">
+        {youtubeId ? (
+          <iframe
+            className="aspect-video w-full"
+            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1`}
+            title={item.title || "video review"}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        ) : directVideo ? (
+          <video
+            src={normalizeImage(videoUrl)}
+            className="max-h-[85vh] w-full bg-black"
+            controls
+            autoPlay
+            playsInline
+          />
+        ) : (
+          <div className="bg-white p-6 text-center">
+            <div className="mb-3 font-semibold">ไม่สามารถเล่นวิดีโอในหน้านี้ได้</div>
+            <a
+              href={videoUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-blue-600 underline"
+            >
+              เปิดวิดีโอ
+            </a>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 // การ์ดวิดีโอรีวิว
 function VideoReviewSection({ items = [] }) {
-  // ถ้าไม่มีข้อมูล ไม่ต้องแสดง section นี้
+  const [selectedVideo, setSelectedVideo] = React.useState(null);
+
   if (!items.length) return null;
 
   return (
@@ -689,40 +762,54 @@ function VideoReviewSection({ items = [] }) {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => (
-          <a
+          <button
             key={item.id}
-            href={item.video_url || '#'}
-            target="_blank"
-            rel="noreferrer"
-            className="overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:shadow-md"
+            type="button"
+            onClick={() => setSelectedVideo(item)}
+            className="group overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition hover:shadow-md"
           >
-            {/* ถ้ามีภาพปก ใช้ภาพปก ถ้าไม่มีแสดงกล่อง placeholder */}
-            {item.thumbnail_url ? (
-              <img
-                src={normalizeImage(item.thumbnail_url)}
-                alt={item.title || 'video review'}
-                className="h-[160px] w-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            ) : (
-              <div className="grid h-[160px] w-full place-items-center bg-gray-100 text-gray-400">
-                ไม่มีภาพปก
-              </div>
-            )}
+            <div className="relative">
+              {item.thumbnail_url ? (
+                <img
+                  src={normalizeImage(item.thumbnail_url)}
+                  alt={item.title || "video review"}
+                  className="h-[180px] w-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : (
+                <div className="grid h-[180px] w-full place-items-center bg-gray-100 text-gray-400">
+                  ไม่มีภาพปก
+                </div>
+              )}
 
-            <div className="p-2">
-              <div className="line-clamp-2 text-sm font-medium text-gray-800">
-                {item.title || 'วิดีโอรีวิว'}
-              </div>
-              <div className="mt-1 text-xs text-gray-500">
-                {item.platform || 'video'}
+              <div className="absolute inset-0 grid place-items-center bg-black/20 opacity-90 transition group-hover:bg-black/30">
+                <div className="grid h-14 w-14 place-items-center rounded-full bg-white/90 text-2xl shadow">
+                  ▶
+                </div>
               </div>
             </div>
-          </a>
+
+            <div className="p-3">
+              <div className="line-clamp-2 text-sm font-semibold text-gray-800">
+                {item.title || "วิดีโอรีวิว"}
+              </div>
+
+              <div className="mt-1 text-xs text-gray-500">
+                {item.platform || "video"}
+              </div>
+            </div>
+          </button>
         ))}
       </div>
+
+      {selectedVideo && (
+        <VideoReviewModal
+          item={selectedVideo}
+          onClose={() => setSelectedVideo(null)}
+        />
+      )}
     </section>
   );
 }
