@@ -448,50 +448,7 @@ function ProductCard({ p, onAdd }) {
 
 
 
-        {qty !== undefined && (                          // << แสดง badge เมื่อมีตัวเลขจริง
-          <div
-            className={
-              "absolute left-2 top-2 z-10 rounded-full px-2 py-0.5 text-xs font-medium shadow " +
-              (qty <= 0 ? "bg-red-600 text-white" : "bg-white/90 text-gray-900")
-            }
-          >
-            {qty <= 0 ? "หมดสต๊อก" : `คงเหลือ ${qty}`}
-          </div>
-        )}
-      </div>
-
-      <div className="mt-3">
-        <div className="text-xs text-gray-500">{p.sku}</div>
-        <div className="mt-3 text-xs font-semibold leading-snug">{p.name}</div>
-        <div className="mt-1 text-lg">฿{toMoney(p.price)}</div>
-
-     
-        <button
-          className="mt-3 w-full rounded-xl border px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
-          disabled={qty !== undefined && qty <= 0}       // << disable เฉพาะเมื่อรู้ว่าหมดจริง
-          onClick={() => onAdd(p)}
-        >
-          {qty !== undefined && qty <= 0 ? 'หมดสต๊อก' : '+ เพิ่มลงตะกร้า'}
-        </button>
-
-
-
-        {/* ⬇️ ใส่บรรทัดนี้ */}
-{p.description && (
-  <div className="mt-3 text-sm text-gray-500 leading-relaxed whitespace-pre-wrap break-words">
-    {p.description}
-  </div>
-)}
-
-    
-
-      </div>
-
-
-            
-    </div>
-  );
-}
+        
 
 
 
@@ -1408,17 +1365,25 @@ const submitOrder = async ({ name, address, phone, note, payment }) => {
     price: Number(x.price),
   }));
 
+  // เอาสี/ไซส์ที่ลูกค้าเลือก มาต่อท้ายในช่องหมายเหตุ เพื่อให้แอดมินเห็นในระบบหลังบ้าน
+  const optionsNote = cart.items
+    .filter(x => x.selectedOpts && Object.keys(x.selectedOpts).length > 0)
+    .map(x => `- ${x.name}: ${Object.entries(x.selectedOpts).map(([k,v]) => `${k}=${v}`).join(', ')}`)
+    .join('\n');
+  
+  const finalNote = [note, optionsNote].filter(Boolean).join('\n\n--- ข้อมูลย่อยสินค้าที่เลือก ---\n');
+
   const payload = {
     kind: "sale",
     doc_no: genDoc("WEB"),
     status: "success",
-    customer: { name, address, phone, note },
+    customer: { name, address, phone, note: finalNote },
     shipping: {
       method_id: shipping.method_id,
       region: shipping.region,
       fee: Number(shipping.fee || 0),
     },
-    payment,   // 👈 ส่งไปเซิร์ฟเวอร์
+    payment,
     items,
   };
 
