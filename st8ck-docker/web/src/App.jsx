@@ -247,7 +247,7 @@ function ConfirmationModal({ show, onConfirm, onCancel, title, children }) {
 function ProductTab() {
   const { data: products, loading, error, setData: setProducts } = useFetch('/api/products');
   const { data: stockRows, setData: setStockRows } = useFetch('/api/stock'); // << เพิ่มบรรทัดนี้
-  const initialFormState = { code: '', name: '', description: '', unit: 'ชิ้น', sell_price: '', buy_price: '', min_qty_alert: '', image_url: '' };
+  const initialFormState = { code: '', name: '', description: '', unit: 'ชิ้น', sell_price: '', buy_price: '', min_qty_alert: '', image_url: '', attributes: [] };
   const [form, setForm] = useState(initialFormState);
   const [busy, setBusy] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -275,9 +275,13 @@ async function refreshProducts() {
     setReloading(false);
   }
 }
-  const handleEdit = (product) => {
+const handleEdit = (product) => {
     setEditingProduct(product);
-    setForm(product);
+    // เปลี่ยนจาก setForm(product); เป็นแบบด้านล่างนี้ครับ
+    setForm({
+      ...product,
+      attributes: product.attributes || [] 
+    });
   };
   const handleCancelEdit = () => {
     setEditingProduct(null);

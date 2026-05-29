@@ -7,6 +7,10 @@ import dotenv from 'dotenv';
 import { query, withTransaction } from './db.js';
 import fs from 'fs';
 import multer from 'multer';
+const {
+  createPresignedUploadUrl,
+  createPresignedReadUrl
+} = require("../s3");
 
 dotenv.config();
 const app = express();
@@ -208,12 +212,13 @@ async function getProductWithImages(id) {
 
 // ===== Routes ที่เหลือค่อยตามมา (ตอนนี้ upload พร้อมใช้แล้ว) =====
 // CREATE product
+// CREATE product
 app.post('/api/products', async (req, res) => {
-  const { code, name, unit, sell_price, buy_price, min_qty_alert, image_url, description } = req.body || {};
+  const { code, name, unit, sell_price, buy_price, min_qty_alert, image_url, description, attributes } = req.body || {};
   try {
     const r = await query(
-      `INSERT INTO products(code, name, unit, sell_price, buy_price, min_qty_alert, image_url, description)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      `INSERT INTO products(code, name, unit, sell_price, buy_price, min_qty_alert, image_url, description, attributes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        RETURNING *`,
       [
         String(code||'').trim(),
@@ -223,7 +228,8 @@ app.post('/api/products', async (req, res) => {
         Number(buy_price)||0,
         Number(min_qty_alert)||0,
         image_url || null,
-        description || null
+        description || null,
+        JSON.stringify(attributes || [])
       ]
     );
     res.status(201).json(r.rows[0]);
@@ -343,15 +349,20 @@ app.patch('/api/products/:id/image', async (req, res) => {
 
 app.put('/api/products/:id', async (req,res)=>{
   const id = req.params.id;
-  const { code, name, unit, sell_price, buy_price, min_qty_alert, image_url, description } = req.body || {};
+  const { code, name, unit, sell_price, buy_price, min_qty_alert, image_url, description, attributes } = req.body || {};
   try{
     const r = await query(
       `UPDATE products
          SET code=$1, name=$2, unit=$3, sell_price=$4, buy_price=$5,
-             min_qty_alert=$6, image_url=$7, description=$8
-       WHERE id=$9
+             min_qty_alert=$6, image_url=$7, description=$8, attributes=$9
+       WHERE id=$10
        RETURNING *`,
-      [code, name, unit, sell_price, buy_price, min_qty_alert, image_url, description, id]
+      [
+        code, name, unit, sell_price, buy_price, 
+        min_qty_alert, image_url, description, 
+        JSON.stringify(attributes || []), 
+        id
+      ]
     );
     res.json(r.rows[0]);
   }catch(e){ res.status(400).json({ error: e.message }); }
@@ -927,6 +938,42 @@ app.patch('/api/reviews/:id/toggle', async (req, res) => {
 app.use(express.static(publicDir));
 app.get('*', (req,res)=> res.sendFile(path.join(publicDir, 'index.html')));
 
+app.post("/api/uploads/presign", async (req, res) => {
+  try {
+    const { filename, contentType } = req.body || {};
+
+    if (!filename) {
+      return res.status(400).json({
+        error: "filename is required"
+      });
+    }
+
+    const result = await createPresignedUploadUrl({
+      filename,
+      contentType
+    });
+
+    return res.json(result);
+  } catch (err) {
+    console.error("create presigned upload url error:", err);
+    return res.status(500).json({
+      error: "failed to create presigned upload url"
+    });
+  }
+});
+
+app.get("/uploads/:filename", async (req, res) => {
+  try {
+    const key = `uploads/${req.params.filename}`;
+    const signedUrl = await createPresignedReadUrl(key);
+
+    return res.redirect(302, signedUrl);
+  } catch (err) {
+    console.error("create presigned read url error:", err);
+    return res.status(404).send("File not found");
+  }
+});
+
 const port = process.env.PORT || 3000;
 app.listen(port, ()=> console.log('St8ck listening on', port));
 
@@ -970,7 +1017,7 @@ await query(`
 `);
 await query(`INSERT INTO shop(id) VALUES (1) ON CONFLICT (id) DO NOTHING;`);
 await query(`ALTER TABLE shop ADD COLUMN IF NOT EXISTS banner_link TEXT;`); // ✅ สำคัญ
-
+await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB DEFAULT '[]'::jsonb;`);
 await query(`INSERT INTO shop(id) VALUES (1) ON CONFLICT (id) DO NOTHING;`);
 // === Bills columns (ensure exist) ===
 await query(`
