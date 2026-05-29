@@ -772,7 +772,6 @@ body: JSON.stringify({
 
       <div className="mt-2 flex flex-col items-end gap-1">
         <button onClick={() => setImageMgrId(p.id)} className="text-xs font-medium text-indigo-600 hover:underline">รูปภาพ</button>
-        <button onClick={() => handleClone(p)} className="text-xs font-medium text-amber-600 hover:underline">คัดลอก</button>
         <button onClick={() => handleEdit(p)} className="text-xs font-medium text-blue-600 hover:underline">แก้ไข</button>
         <button onClick={() => handleDelete(p)} className="text-xs font-medium text-red-600 hover:underline">ลบ</button>
       </div>
