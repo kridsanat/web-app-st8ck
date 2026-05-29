@@ -263,14 +263,45 @@ function ProductCard({ p, onAdd }) {
 
   const [lbOpen, setLbOpen]   = React.useState(false);
   const [lbIndex, setLbIndex] = React.useState(0);
-  const [selectedOpts, setSelectedOpts] = React.useState({}); // เก็บค่าที่ลูกค้าเลือก
+  const [selectedOpts, setSelectedOpts] = React.useState({});
 
   const qty = toNum(p.stock_qty);
-  const attrs = p.attributes || []; // ดึง attributes มาใช้
+  const rawAttrs = p.attributes || [];
+
+  // 🌟 ฟังก์ชันใหม่: จัดกลุ่มข้อมูล (แก้ปัญหา Dropdown ซ้ำซ้อนและไม่มีตัวเลือก)
+  const displayAttrs = React.useMemo(() => {
+    if (!Array.isArray(rawAttrs) || rawAttrs.length === 0) return [];
+    
+    // ถ้าข้อมูลถูกจับกลุ่มมาแล้ว (มี options เป็น Array) ก็ใช้งานได้เลย
+    if (rawAttrs.some(a => Array.isArray(a.options))) {
+      return rawAttrs;
+    }
+
+    // ถ้าข้อมูลมาแบบแยกชิ้น (เช่น {name: 'ขนาด', value: '38'}, {name: 'ขนาด', value: '39'}) ให้จับมัดรวมกัน
+    const groups = {};
+    rawAttrs.forEach(a => {
+      const attrName = a.name || a.attr_name || a.key;
+      if (!attrName) return;
+
+      if (!groups[attrName]) groups[attrName] = new Set();
+      
+      // ดึงค่า value มาใส่ในกลุ่ม (รองรับฟิลด์หลายรูปแบบที่หลังบ้านอาจจะส่งมา)
+      const val = a.value ?? a.val ?? a.attr_value ?? a.option;
+      if (val !== undefined && val !== null && String(val).trim() !== "") {
+        groups[attrName].add(String(val));
+      }
+    });
+
+    // แปลงกลับเป็น Array และซ่อนกลุ่มที่ไม่มีตัวเลือกจริงๆ ออกไป
+    return Object.keys(groups)
+      .map(k => ({ name: k, options: Array.from(groups[k]) }))
+      .filter(g => g.options.length > 0);
+  }, [rawAttrs]);
 
   const handleAdd = () => {
-    if (attrs.length > 0) {
-      const missing = attrs.filter(a => !selectedOpts[a.name]);
+    // บังคับว่าต้องเลือกตัวเลือกให้ครบก่อน ถึงจะลงตะกร้าได้
+    if (displayAttrs.length > 0) {
+      const missing = displayAttrs.filter(a => !selectedOpts[a.name]);
       if (missing.length > 0) {
         alert(`กรุณาเลือก: ${missing.map(m => m.name).join(', ')}`);
         return;
@@ -296,10 +327,10 @@ function ProductCard({ p, onAdd }) {
         <div className="mt-3 text-xs font-semibold leading-snug">{p.name}</div>
         <div className="mt-1 text-lg">฿{toMoney(p.price)}</div>
 
-        {/* Dropdown เลือกสี/ไซส์ */}
-        {attrs.length > 0 && (
+        {/* ⬇️ แสดงผล Dropdown ที่ถูกจัดกลุ่มเรียบร้อยแล้ว */}
+        {displayAttrs.length > 0 && (
           <div className="mt-3 space-y-2">
-            {attrs.map((attr, idx) => (
+            {displayAttrs.map((attr, idx) => (
               <div key={idx}>
                 <select
                   className="w-full border rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-gray-300"
@@ -307,7 +338,7 @@ function ProductCard({ p, onAdd }) {
                   onChange={(e) => setSelectedOpts(prev => ({...prev, [attr.name]: e.target.value}))}
                 >
                   <option value="">-- เลือก {attr.name} --</option>
-                  {(attr.options || []).map((opt, i) => (
+                  {attr.options.map((opt, i) => (
                     <option key={i} value={opt}>{opt}</option>
                   ))}
                 </select>
