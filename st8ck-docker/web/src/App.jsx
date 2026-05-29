@@ -448,7 +448,12 @@ function ImagePicker({ p }) {
     ? baseList.filter(p => (`${p.code ?? ''} ${p.name ?? ''} ${p.barcode ?? ''}`).toLowerCase().includes(pQ))
     : baseList;
   const productsView = productsFiltered.slice().sort(byCode);
-
+const initialFormState = { 
+  code: '', name: '', description: '', 
+  unit: 'ชิ้น', sell_price: '', buy_price: '', 
+  min_qty_alert: '', image_url: '',
+  attributes: [] // เพิ่มบรรทัดนี้
+};
   // แทนที่ฟังก์ชัน submit เดิมใน ProductTab
 const submit = async (e) => {
   e.preventDefault();
@@ -462,10 +467,11 @@ const submit = async (e) => {
   const method = editingProduct ? 'PUT' : 'POST';
 
   try {
+    
     const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+body: JSON.stringify({
         code: String(form.code || '').trim(),
         name: String(form.name || '').trim(),
         unit: String(form.unit || 'ชิ้น'),
@@ -474,6 +480,7 @@ const submit = async (e) => {
         min_qty_alert: Number(form.min_qty_alert) || 0,
         image_url: form.image_url || null,
         description: form.description || null,
+        attributes: form.attributes || [] // ส่งข้อมูลตัวเลือกย่อยไป Backend
       }),
     });
 
@@ -581,6 +588,57 @@ const submit = async (e) => {
                   <input type="number" className="input w-full text-base" value={form.sell_price} onChange={e => setForm({ ...form, sell_price: e.target.value })} placeholder="120" />
                 </Labeled>
               </div>
+              <Labeled label="ตัวเลือกย่อย (เช่น ขนาด, สี)">
+  <div className="space-y-2 p-3 bg-gray-50 border rounded-xl">
+    {(form.attributes || []).map((attr, i) => (
+      <div key={i} className="flex items-center gap-2">
+        <input 
+          className="input w-1/2 text-sm" 
+          placeholder="ชื่อ (เช่น Size)" 
+          value={attr.name} 
+          onChange={e => {
+            const newAttr = [...form.attributes];
+            newAttr[i].name = e.target.value;
+            setForm({ ...form, attributes: newAttr });
+          }} 
+        />
+        <input 
+          className="input w-1/2 text-sm" 
+          placeholder="ค่า (เช่น 8.5 us)" 
+          value={attr.value} 
+          onChange={e => {
+            const newAttr = [...form.attributes];
+            newAttr[i].value = e.target.value;
+            setForm({ ...form, attributes: newAttr });
+          }} 
+        />
+        <button 
+          type="button" 
+          onClick={() => {
+            setForm({
+              ...form, 
+              attributes: form.attributes.filter((_, idx) => idx !== i)
+            });
+          }} 
+          className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+          title="ลบตัวเลือก"
+        >
+          ✕
+        </button>
+      </div>
+    ))}
+    <button 
+      type="button" 
+      onClick={() => setForm({
+        ...form, 
+        attributes: [...(form.attributes || []), { name: '', value: '' }]
+      })} 
+      className="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1 mt-1"
+    >
+      + เพิ่มตัวเลือก
+    </button>
+  </div>
+</Labeled>
               <div className="flex flex-col space-y-2 pt-2">
                 <button disabled={busy} className="w-full h-11 btn-primary">
                   {busy ? 'กำลังบันทึก...' : (editingProduct ? 'อัปเดตข้อมูล' : 'บันทึก')}

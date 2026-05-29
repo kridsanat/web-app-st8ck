@@ -18,8 +18,12 @@ CREATE TABLE IF NOT EXISTS products (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+
 -- ถ้า DB เก่าเคยมี UNIQUE เดิม ให้ถอดก่อน
 ALTER TABLE products DROP CONSTRAINT IF EXISTS products_code_key;
+
+ALTER TABLE products 
+ADD COLUMN attributes JSONB DEFAULT '[]'::jsonb;
 
 -- ห้าม code ซ้ำเฉพาะสินค้าที่ใช้งานอยู่
 CREATE UNIQUE INDEX IF NOT EXISTS idx_products_code_active_unique
