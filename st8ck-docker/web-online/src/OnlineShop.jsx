@@ -757,7 +757,7 @@ function VideoReviewSection({ items = [] }) {
   return (
     <section className="mt-10">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">วิดีโอแนะนำสินค้า</h2>
+        <h2 className="text-xl font-semibold text-gray-900">วิดีโอ</h2>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -833,7 +833,7 @@ function CustomerReviewSection({ items = [] }) {
   return (
     <section className="mt-10">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">รีวิวจากลูกค้า</h2>
+        <h2 className="text-xl font-semibold text-gray-900">รีวิว</h2>
       </div>
 
 {/* บนมือถือปรับเป็นแถวละ 3 กล่อง (จากเดิม 2) และหน้าจอใหญ่เป็นแถวละ 8 กล่อง (จากเดิม 6) */}
