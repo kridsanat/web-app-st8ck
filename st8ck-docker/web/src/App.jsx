@@ -814,8 +814,25 @@ body: JSON.stringify({
     </>
   );
 }
+// 🌟 คอมโพเนนต์ใหม่: สำหรับสร้างป้ายแสดงข้อมูลย่อย (สี, ไซส์)
+function AttributeBadges({ attributes }) {
+  const attrs = Array.isArray(attributes) ? attributes : (typeof attributes === 'string' ? JSON.parse(attributes || '[]') : []);
+  if (attrs.length === 0) return null;
+  
+  return (
+    <div className="flex flex-wrap gap-1 mt-0.5 mb-0.5">
+      {attrs.map((a, i) => (
+        <span key={i} className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 leading-none">
+          {a.name}: {a.value}
+        </span>
+      ))}
+    </div>
+  );
+}
 
-
+/**
+ * Page for creating a bill (either a sale or a purchase).
+ */
 /**
  * Page for creating a bill (either a sale or a purchase).
  */
@@ -831,10 +848,9 @@ function BillPage({ kind }) {
     ? list.filter(p => (`${p.code} ${p.name} ${p.barcode ?? ''}`).toLowerCase().includes(q))
     : list;
 
-   const add = (p) => {
-   // เอารูปจาก cover_image ก่อน ถ้าไม่มีค่อย fallback ไป image_url
-   const rawImg = p.cover_image || p.image_url || null;
-   const imgUrl = normalizeImage(rawImg);
+  const add = (p) => {
+    const rawImg = p.cover_image || p.image_url || null;
+    const imgUrl = normalizeImage(rawImg);
     const i = items.findIndex(x => x.product_id === p.id);
     if (i > -1) {
       const copy = [...items];
@@ -842,13 +858,14 @@ function BillPage({ kind }) {
       setItems(copy);
     } else {
        setItems([...items, {
-       product_id: p.id,
-       price: kind === 'sale' ? Number(p.sell_price) : Number(p.buy_price),
-       qty: 1,
-       name: p.name,
-       code: p.code,
-       image_url: imgUrl,
-     }]);
+         product_id: p.id,
+         price: kind === 'sale' ? Number(p.sell_price) : Number(p.buy_price),
+         qty: 1,
+         name: p.name,
+         code: p.code,
+         image_url: imgUrl,
+         attributes: p.attributes // 👈 ดึงข้อมูลย่อยมาใส่ตะกร้าด้วย
+       }]);
     }
   };
 
@@ -864,84 +881,50 @@ function BillPage({ kind }) {
   }, [query, list]);
 
   const submit = async () => {
-  if (!items.length) return;
-
-  const docNo = genDoc(kind === 'sale' ? 'SL' : 'PO');  // เลขบิล
-
-  // 1) ทำธุรกรรมเดิม (ปรับสต๊อก)
-  await fetch(`${API}/${kind === 'sale' ? 'api/sales' : 'api/purchases'}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ items })
-  });
-
-  // 2) บันทึกเอกสารบิล
-  await fetch(`${API}/api/bills`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ kind, doc_no: docNo, items, status: 'success' })
-  });
-
-  alert(`บันทึกเรียบร้อย\nเลขที่เอกสาร: ${docNo}`);
-  location.reload();
-};
-
+    if (!items.length) return;
+    const docNo = genDoc(kind === 'sale' ? 'SL' : 'PO');
+    await fetch(`${API}/${kind === 'sale' ? 'api/sales' : 'api/purchases'}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items })
+    });
+    await fetch(`${API}/api/bills`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind, doc_no: docNo, items, status: 'success' })
+    });
+    alert(`บันทึกเรียบร้อย\nเลขที่เอกสาร: ${docNo}`);
+    location.reload();
+  };
 
   return (
     <div className="bg-white border rounded-2xl px-4 pt-4 pb-8 shadow-sm">
-
       <div className="font-semibold text-blue-700 mb-3">{kind === 'sale' ? 'หน้าขาย' : 'หน้าซื้อ'}</div>
-
       <div className="flex flex-wrap items-center gap-2 pb-2 mb-3">
         <div className="relative w-full md:max-w-md">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="ค้นหา"
-            className="text-base w-48 md:w-80 rounded-xl border pl-10 pr-10 py-2 outline-none focus:ring-2 focus:ring-blue-600"
-          />
-          {query && (
-            <button
-              onClick={() => setQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-900"
-              aria-label="clear"
-            >×</button>
-          )}
-          
-&nbsp;&nbsp;
-<span className="text-xs text-gray-500">
-  แสดง {filteredProducts.length}{q ? ` จาก ${list.length}` : ''} รายการ
-</span>
-
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ค้นหา" className="text-base w-48 md:w-80 rounded-xl border pl-10 pr-10 py-2 outline-none focus:ring-2 focus:ring-blue-600" />
+          {query && <button onClick={() => setQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-900" aria-label="clear">×</button>}
+          &nbsp;&nbsp;<span className="text-xs text-gray-500">แสดง {filteredProducts.length}{q ? ` จาก ${list.length}` : ''} รายการ</span>
         </div>
-
-
-
       </div>
 
       <div className="flex flex-wrap gap-2 pb-2 mb-3">
-
-
         {filteredProducts.map(p => (
-          <button key={p.id} onClick={() => add(p)} className="text-xs px-3 py-2 border rounded-xl bg-gray-50 hover:bg-gray-100 whitespace-nowrap">
-            + {p.name}
+          <button key={p.id} onClick={() => add(p)} className="text-left text-xs px-3 py-2 border rounded-xl bg-gray-50 hover:bg-gray-100 flex flex-col justify-center min-w-max">
+            <div className="font-semibold text-gray-800">+ {p.name}</div>
+            <AttributeBadges attributes={p.attributes} /> {/* 👈 แสดงป้ายที่ปุ่มกด */}
           </button>
         ))}
       </div>
 
-
-
-
       <div className="space-y-2">
         {items.map((it, idx) => (
-          <div key={idx} className="flex items-center gap-3 border rounded-XL p-2">
-            +       {normalizeImage(it.image_url)
-         ? <img src={normalizeImage(it.image_url)} className="w-8 h-8 rounded-lg object-cover border" />
-         : <div className="w-8 h-8 rounded-lg bg-gray-100 border flex items-center justify-center">📦</div>}
-        
-            <div className="flex-1">
-              <div className="text-xs">{it.name}</div>
-              <div className="text-xs text-gray-500">{it.code}</div>
+          <div key={idx} className="flex items-center gap-3 border rounded-xl p-2">
+            {normalizeImage(it.image_url) ? <img src={normalizeImage(it.image_url)} className="w-8 h-8 rounded-lg object-cover border" /> : <div className="w-8 h-8 rounded-lg bg-gray-100 border flex items-center justify-center">📦</div>}
+            <div className="flex-1 min-w-0">
+              <div className="text-xs truncate font-medium text-gray-900">{it.name}</div>
+              <AttributeBadges attributes={it.attributes} /> {/* 👈 แสดงป้ายในรายการที่เลือกแล้ว */}
+              <div className="text-[10px] text-gray-500 truncate">{it.code}</div>
             </div>
             <input type="number" className="input w-16 text-xs p-1" value={it.price} onChange={e => setItems(items.map((x, i) => (i === idx ? { ...x, price: +e.target.value } : x)))} />
             <input type="number" className="input w-16 text-xs p-1" value={it.qty} onChange={e => setItems(items.map((x, i) => (i === idx ? { ...x, qty: +e.target.value } : x)))} />
@@ -950,42 +933,20 @@ function BillPage({ kind }) {
         ))}
       </div>
 
-<div className="mt-2 flex items-center gap-2">  {/* กว้างขึ้น/ยืดได้บนจอเล็ก */}
-  <button
-    type="button"
-    onClick={() => setScanOpen(true)}
-    className="w-24 h-24 rounded-xl border bg-gray-50 hover:bg-gray-100
-               text-sm font-medium flex items-center justify-center gap-2"
-  >
-    <span className="text-3xl">𝄃𝄂𝄂𝄀𝄁𝄃𝄂</span>
- 
-  </button>
-
-
-</div>
-
+      <div className="mt-2 flex items-center gap-2">
+        <button type="button" onClick={() => setScanOpen(true)} className="w-24 h-24 rounded-xl border bg-gray-50 hover:bg-gray-100 text-sm font-medium flex items-center justify-center gap-2"><span className="text-3xl">𝄃𝄂𝄂𝄀𝄁𝄃𝄂</span></button>
+      </div>
 
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
-        
         <div className="text-lg font-bold">รวม: {total.toLocaleString()} บาท</div>
-        
         <button className="w-full h-12 btn-primary" onClick={submit} disabled={!items.length}>บันทึก</button>
       </div>
 
-      <QRScanner
-        open={scanOpen}
-        onClose={() => setScanOpen(false)}
-        onDetected={(val) => {
-          const list = Array.isArray(products) ? products : [];
-          const key = String(val).trim().toLowerCase();
-          const found = list.find(p =>
-            String(p.code||"").toLowerCase() === key ||
-            String(p.barcode||"").toLowerCase() === key
-          );
-          if (found) add(found);
-          else alert(`ไม่พบสินค้าในระบบสำหรับรหัส: ${val}`);
-        }}
-      />
+      <QRScanner open={scanOpen} onClose={() => setScanOpen(false)} onDetected={(val) => {
+        const key = String(val).trim().toLowerCase();
+        const found = list.find(p => String(p.code||"").toLowerCase() === key || String(p.barcode||"").toLowerCase() === key);
+        if (found) add(found); else alert(`ไม่พบสินค้าในระบบสำหรับรหัส: ${val}`);
+      }} />
     </div>
   );
 }
@@ -993,20 +954,29 @@ function BillPage({ kind }) {
 /**
  * Page displaying the current stock levels.
  */
+/**
+ * Page displaying the current stock levels.
+ */
 function StockPage() {
   const { data: rows } = useFetch('/api/stock');
+  const { data: products } = useFetch('/api/products'); // 👈 ดึงข้อมูลสินค้ามาเพื่อเอาตัวเลือกย่อย
 
   const fmtQty = (v) => {
     const n = Number(v);
     if (Number.isNaN(n)) return v ?? "";
-    return Number.isInteger(n)
-      ? n.toLocaleString()
-      : n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return Number.isInteger(n) ? n.toLocaleString() : n.toLocaleString(undefined, { maximumFractionDigits: 2 });
   };
 
-  const byCode = (a, b) =>
-    String(a.code ?? '').localeCompare(String(b.code ?? ''), undefined, { numeric: true, sensitivity: 'base' });
-  const listSorted = Array.isArray(rows) ? [...rows].sort(byCode) : [];
+  const listSorted = React.useMemo(() => {
+    const sList = Array.isArray(rows) ? rows : [];
+    const pList = Array.isArray(products) ? products : [];
+    
+    // โยงข้อมูลสต๊อกเข้ากับข้อมูลสินค้าเพื่อดึง Attributes มาโชว์
+    return sList.map(r => {
+      const p = pList.find(x => x.id === (r.product_id ?? r.id ?? r.productId));
+      return { ...r, attributes: p?.attributes || [] };
+    }).sort((a, b) => String(a.code ?? '').localeCompare(String(b.code ?? ''), undefined, { numeric: true, sensitivity: 'base' }));
+  }, [rows, products]);
 
   return (
     <div className="bg-white border rounded-2xl p-4 shadow-sm">
@@ -1014,17 +984,15 @@ function StockPage() {
       <div className="space-y-2">
         {listSorted.map(r => (
           <div key={r.id} className={"flex items-center justify-between border rounded-xl p-3 " + (r.stock <= r.min_qty_alert ? 'bg-red-50' : '')}>
-            <div className="flex items-center gap-3">
-              {r.image_url
-                ? <img src={r.image_url} className="w-10 h-10 rounded-lg object-cover border" />
-                : <div className="w-10 h-10 rounded-lg bg-gray-100 border flex items-center justify-center">📦</div>
-              }
-              <div>
-                <div className="font-medium text-xs">{r.name}</div>
-                <div className="text-xs text-gray-500">{r.code}</div>
+            <div className="flex items-center gap-3 min-w-0">
+              {r.image_url ? <img src={r.image_url} className="shrink-0 w-10 h-10 rounded-lg object-cover border" /> : <div className="shrink-0 w-10 h-10 rounded-lg bg-gray-100 border flex items-center justify-center">📦</div>}
+              <div className="min-w-0">
+                <div className="font-medium text-xs truncate text-gray-900">{r.name}</div>
+                <AttributeBadges attributes={r.attributes} /> {/* 👈 แสดงป้ายในสต๊อก */}
+                <div className="text-[10px] text-gray-500 truncate">{r.code}</div>
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-right shrink-0">
               <div className="font-semibold">{fmtQty(r.stock)} {r.unit}</div>
             </div>
           </div>
@@ -1826,6 +1794,7 @@ function BillsPage() {
   const month = selectedDate.slice(0, 7);
 
   const { data: bills, loading, error } = useFetch(`/api/bills?month=${month}`);
+  const { data: products } = useFetch('/api/products'); // 👈 ดึงรายการสินค้ามาใช้เทียบหาตัวเลือก
 
   const [openId, setOpenId] = React.useState(null);
   const [itemsCache, setItemsCache] = React.useState({});
@@ -1857,17 +1826,12 @@ function BillsPage() {
 
   async function changeStatus(id, status) {
     try {
-      const r = await fetch(`/api/bills/${id}/status`, {
-        method: 'PATCH',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ status })
-      });
+      const r = await fetch(`/api/bills/${id}/status`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
       if (!r.ok) throw new Error(await r.text());
       alert('อัปเดตสถานะเรียบร้อย');
       location.reload();
     } catch (e) {
       alert('เปลี่ยนสถานะไม่สำเร็จ');
-      console.error(e);
     }
   }
 
@@ -1875,20 +1839,9 @@ function BillsPage() {
     <div className="bg-white border rounded-2xl p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <div className="font-semibold text-blue-700">บิลเอกสาร</div>
-
         <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="input w-44"
-          />
-          <button
-            onClick={() => setSelectedDate(new Date().toISOString().slice(0, 10))}
-            className="px-3 py-1.5 rounded-xl border bg-gray-50 hover:bg-gray-100"
-          >
-            วันนี้
-          </button>
+          <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="input w-44" />
+          <button onClick={() => setSelectedDate(new Date().toISOString().slice(0, 10))} className="px-3 py-1.5 rounded-xl border bg-gray-50 hover:bg-gray-100">วันนี้</button>
         </div>
       </div>
 
@@ -1898,7 +1851,15 @@ function BillsPage() {
       <div className="space-y-2">
         {pageRows.map(b => {
           const open = openId === b.id;
-          const items = itemsCache[b.id] || [];
+          const rawItems = itemsCache[b.id] || [];
+          
+          // 👈 โยงข้อมูลตัวเลือก (Attributes) ให้กับสินค้าในบิล
+          const pList = Array.isArray(products) ? products : [];
+          const items = rawItems.map(it => {
+            const p = pList.find(x => x.id === it.product_id);
+            return { ...it, attributes: p?.attributes || it.attributes || [] };
+          });
+
           const subtotal = items.reduce((s, it) => s + Number(it.qty) * Number(it.price), 0);
 
           return (
@@ -1911,21 +1872,10 @@ function BillsPage() {
                     {typeof b.item_count !== 'undefined' ? ` • ${b.item_count} รายการ` : ''}
                   </div>
                 </div>
-
                 <div className="flex items-center gap-3">
                   <div className="text-xs font-semibold whitespace-nowrap">{fmt(b.total)} บาท</div>
-                  <button
-                    onClick={() => toggleOpen(b.id)}
-                    className="text-xs px-3 py-1.5 rounded-lg border bg-gray-50 hover:bg-gray-100"
-                  >
-                    {open ? 'ซ่อนรายการ' : 'ดูรายการ'}
-                  </button>
-
-                  <select
-                    value={b.status}
-                    onChange={(e)=>changeStatus(b.id, e.target.value)}
-                    className="text-xs px-2 py-1 rounded-lg border bg-white"
-                  >
+                  <button onClick={() => toggleOpen(b.id)} className="text-xs px-3 py-1.5 rounded-lg border bg-gray-50 hover:bg-gray-100">{open ? 'ซ่อนรายการ' : 'ดูรายการ'}</button>
+                  <select value={b.status} onChange={(e)=>changeStatus(b.id, e.target.value)} className="text-xs px-2 py-1 rounded-lg border bg-white">
                     <option value="pending">รอดำเนินการ</option>
                     <option value="success">สำเร็จ</option>
                     <option value="cancelled">ยกเลิก</option>
@@ -1933,117 +1883,78 @@ function BillsPage() {
                 </div>
               </div>
 
-{open && (
-  <div className="mt-3 rounded-lg bg-gray-50 p-3">
-    {items.length === 0 ? (
-      <div className="text-xs text-gray-500">ไม่มีรายการ</div>
-    ) : (
-      <div className="overflow-x-auto">
-
-
-{(b.customer_name || b.customer_phone || b.customer_address || b.customer_note) && (
-  <div className="mt-2 rounded-lg bg-blue-50 p-3 text-xs">
-    {b.customer_name && <div><b>ลูกค้า:</b> {b.customer_name}</div>}
-    {b.customer_phone && <div><b>โทร:</b> {b.customer_phone}</div>}
-    {b.customer_address && <div><b>ที่อยู่:</b> {b.customer_address}</div>}
-    {b.customer_note && <div><b>หมายเหตุ:</b> {b.customer_note}</div>}
-
-    {(b.payment_method || b.payment_slip_url) && (
-      <div className="mt-2 rounded-lg bg-amber-50 p-3 text-xs">
-        <div><b>ชำระเงิน:</b> {b.payment_method === 'transfer' ? 'โอน' : 'เก็บปลายทาง'}</div>
-        {b.payment_slip_url && (
-          <div className="mt-1">
-            <a href={b.payment_slip_url} target="_blank" rel="noreferrer" className="text-blue-600 underline">
-              ดูสลิป
-            </a>
-          </div>
-        )}
-      </div>
-    )}
-  </div>
-)}
-
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-xs text-gray-500">
-              <th className="text-xs py-1">สินค้า</th>
-              <th className="text-xs py-1 w-24 text-right">จำนวน</th>
-              <th className="text-xs py-1 w-28 text-right">ราคา</th>
-              <th className="text-xs py-1 w-28 text-right">เป็นเงิน</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it, i) => (
-              <tr key={i} className="text-xs border-t">
-                <td className="text-xs py-1">
-                  <div className="font-xs">{it.name}</div>
-                  <div className="text-[11px] text-gray-500">{it.code} • {it.unit}</div>
-                </td>
-                <td className="text-xs py-1 text-right">{fmt(it.qty)}</td>
-                <td className="text-xs py-1 text-right">{fmt(it.price)}</td>
-                <td className="text-xs py-1 text-right">{fmt(Number(it.qty) * Number(it.price))}</td>
-              </tr>
-            ))}
-
-            {Number(b.shipping_fee || 0) > 0 && (
-              <tr className="text-xs border-t">
-                <td className="py-1 text-right" colSpan={3}>
-                  ค่าจัดส่ง
-                  {b.shipping_name
-                    ? ` (${b.shipping_name}${b.shipping_region === 'bkk' ? ' • กทม.' : b.shipping_region === 'upcountry' ? ' • ตจว.' : ''})`
-                    : ''}
-                </td>
-                <td className="py-1 text-right">{fmt(b.shipping_fee)}</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        <div className="mt-3 flex justify-end">
-          <div className="text-right space-y-0.5">
-            <div className="text-xs text-gray-500">ค่าสินค้า</div>
-            <div className="font-medium">{fmt(subtotal)} บาท</div>
-
-            {Number(b.shipping_fee || 0) > 0 && (
-              <>
-                <div className="text-xs text-gray-500">ค่าจัดส่ง</div>
-                <div className="font-medium">+ {fmt(b.shipping_fee)} บาท</div>
-              </>
-            )}
-
-            <div className="text-xs text-gray-500">รวมทั้งสิ้น</div>
-            <div className="text-lg font-bold">{fmt(b.total)} บาท</div>
-          </div>
-        </div>
-      </div>
-    )}
-  </div>
-)}
+              {open && (
+                <div className="mt-3 rounded-lg bg-gray-50 p-3">
+                  {items.length === 0 ? <div className="text-xs text-gray-500">ไม่มีรายการ</div> : (
+                    <div className="overflow-x-auto">
+                      {(b.customer_name || b.customer_phone || b.customer_address || b.customer_note) && (
+                        <div className="mt-2 rounded-lg bg-blue-50 p-3 text-xs mb-3">
+                          {b.customer_name && <div><b>ลูกค้า:</b> {b.customer_name}</div>}
+                          {b.customer_phone && <div><b>โทร:</b> {b.customer_phone}</div>}
+                          {b.customer_address && <div><b>ที่อยู่:</b> {b.customer_address}</div>}
+                          {b.customer_note && <div><b>หมายเหตุ:</b> {b.customer_note}</div>}
+                          {(b.payment_method || b.payment_slip_url) && (
+                            <div className="mt-2 rounded-lg bg-amber-50 p-3 text-xs border border-amber-100">
+                              <div><b>ชำระเงิน:</b> {b.payment_method === 'transfer' ? 'โอน' : 'เก็บปลายทาง'}</div>
+                              {b.payment_slip_url && <div className="mt-1"><a href={b.payment_slip_url} target="_blank" rel="noreferrer" className="text-blue-600 underline">ดูสลิป</a></div>}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-xs text-gray-500">
+                            <th className="text-xs py-1 text-left">สินค้า</th>
+                            <th className="text-xs py-1 w-24 text-right">จำนวน</th>
+                            <th className="text-xs py-1 w-28 text-right">ราคา</th>
+                            <th className="text-xs py-1 w-28 text-right">เป็นเงิน</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map((it, i) => (
+                            <tr key={i} className="text-xs border-t">
+                              <td className="text-xs py-1.5">
+                                <div className="font-medium text-gray-900">{it.name}</div>
+                                <AttributeBadges attributes={it.attributes} /> {/* 👈 แสดงป้ายในตารางบิล */}
+                                <div className="text-[10px] text-gray-500">{it.code} {it.unit ? `• ${it.unit}` : ''}</div>
+                              </td>
+                              <td className="text-xs py-1 text-right align-top pt-2">{fmt(it.qty)}</td>
+                              <td className="text-xs py-1 text-right align-top pt-2">{fmt(it.price)}</td>
+                              <td className="text-xs py-1 text-right align-top pt-2">{fmt(Number(it.qty) * Number(it.price))}</td>
+                            </tr>
+                          ))}
+                          {Number(b.shipping_fee || 0) > 0 && (
+                            <tr className="text-xs border-t">
+                              <td className="py-2 text-right text-gray-600" colSpan={3}>
+                                ค่าจัดส่ง {b.shipping_name ? ` (${b.shipping_name}${b.shipping_region === 'bkk' ? ' • กทม.' : b.shipping_region === 'upcountry' ? ' • ตจว.' : ''})` : ''}
+                              </td>
+                              <td className="py-2 text-right">{fmt(b.shipping_fee)}</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                      <div className="mt-3 flex justify-end border-t pt-3">
+                        <div className="text-right space-y-0.5">
+                          <div className="text-xs text-gray-500">ค่าสินค้า: <span className="font-medium text-gray-900">{fmt(subtotal)}</span> บาท</div>
+                          {Number(b.shipping_fee || 0) > 0 && <div className="text-xs text-gray-500">ค่าจัดส่ง: <span className="font-medium text-gray-900">+ {fmt(b.shipping_fee)}</span> บาท</div>}
+                          <div className="text-xs text-gray-500 mt-2">รวมทั้งสิ้น</div>
+                          <div className="text-lg font-bold text-blue-700">{fmt(b.total)} บาท</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
-
-        {!loading && filteredBills.length === 0 && (
-          <div className="text-sm text-gray-500">ยังไม่มีบิลในวันที่เลือก</div>
-        )}
+        {!loading && filteredBills.length === 0 && <div className="text-sm text-gray-500">ยังไม่มีบิลในวันที่เลือก</div>}
       </div>
 
       <div className="flex items-center justify-end gap-2 mt-3">
-        <button
-          className="px-3 py-1.5 rounded-xl border disabled:opacity-50"
-          onClick={() => setPage(p => Math.max(1, p - 1))}
-          disabled={page <= 1}
-        >
-          ก่อนหน้า
-        </button>
+        <button className="px-3 py-1.5 rounded-xl border disabled:opacity-50" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>ก่อนหน้า</button>
         <span className="text-sm">หน้า {page} / {totalPages}</span>
-        <button
-          className="px-3 py-1.5 rounded-xl border disabled:opacity-50"
-          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-          disabled={page >= totalPages}
-        >
-          ถัดไป
-        </button>
+        <button className="px-3 py-1.5 rounded-xl border disabled:opacity-50" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>ถัดไป</button>
       </div>
     </div>
   );
