@@ -241,16 +241,28 @@ app.post('/api/products', async (req, res) => {
 
 
 // ตัวอย่าง: list + cover_image
+// แก้ไข: ดึงข้อมูลสินค้าพร้อมรูปภาพทั้งหมด
 app.get('/api/products', async (req,res)=>{
   const r = await query(`
     SELECT p.*,
-      (SELECT image_url FROM product_images
-       WHERE product_id=p.id ORDER BY sort_order,id LIMIT 1) AS cover_image
-FROM products p
-WHERE p.is_active IS TRUE
-  AND p.deleted_at IS NULL
-ORDER BY p.id ASC
-
+      COALESCE(
+        (
+          SELECT json_agg(
+            json_build_object('id', pi.id, 'image_url', pi.image_url)
+          )
+          FROM (
+            SELECT id, image_url 
+            FROM product_images 
+            WHERE product_id = p.id 
+            ORDER BY sort_order ASC, id ASC
+          ) pi
+        ),
+        '[]'::json
+      ) AS images
+    FROM products p
+    WHERE p.is_active IS TRUE
+      AND p.deleted_at IS NULL
+    ORDER BY p.id ASC
   `);
   res.json(r.rows);
 });
