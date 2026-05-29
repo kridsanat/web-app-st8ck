@@ -448,12 +448,12 @@ function ImagePicker({ p }) {
     ? baseList.filter(p => (`${p.code ?? ''} ${p.name ?? ''} ${p.barcode ?? ''}`).toLowerCase().includes(pQ))
     : baseList;
   const productsView = productsFiltered.slice().sort(byCode);
-const initialFormState = { 
-  code: '', name: '', description: '', 
-  unit: 'ชิ้น', sell_price: '', buy_price: '', 
-  min_qty_alert: '', image_url: '',
-  attributes: [] // เพิ่มบรรทัดนี้
-};
+const initialFormState = {
+    code: '', name: '', description: '',
+    unit: 'ชิ้น', sell_price: '', buy_price: '',
+    min_qty_alert: '', image_url: '',
+    attributes: [] // <--- ต้องมีบรรทัดนี้เพื่อรองรับตัวเลือกย่อย
+  };
   // แทนที่ฟังก์ชัน submit เดิมใน ProductTab
 const submit = async (e) => {
   e.preventDefault();
