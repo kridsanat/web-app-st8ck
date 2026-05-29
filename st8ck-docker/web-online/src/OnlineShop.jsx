@@ -815,18 +815,16 @@ function VideoReviewSection({ items = [] }) {
 }
 
 // การ์ดรีวิวลูกค้า
-// รีวิวลูกค้าแบบเน้นรูป (พร้อมระบบแบ่งหน้า)
+// รีวิวลูกค้าแบบเน้นรูป (พร้อมระบบแบ่งหน้า ชิดซ้าย)
 function CustomerReviewSection({ items = [] }) {
   const [lbOpen, setLbOpen] = React.useState(false);
   const [lbImages, setLbImages] = React.useState([]);
   const [lbIndex, setLbIndex] = React.useState(0);
 
-  // --- เพิ่ม State สำหรับ Pagination ---
   const [page, setPage] = React.useState(1);
-  const itemsPerPage = 4; // จำนวนที่ต้องการแสดงต่อหน้า (จอคอมจะพอดี 1 แถว)
+  const itemsPerPage = 4;
   const totalPages = Math.ceil(items.length / itemsPerPage);
 
-  // ตัด array รีวิวให้เหลือแค่ของหน้าที่กำลังเปิดอยู่
   const currentItems = items.slice(
     (page - 1) * itemsPerPage,
     page * itemsPerPage
@@ -839,7 +837,6 @@ function CustomerReviewSection({ items = [] }) {
     setLbOpen(true);
   };
 
-  // รีเซ็ตหน้ากลับไปหน้า 1 เสมอเวลามีข้อมูลรีวิวชุดใหม่เข้ามา
   React.useEffect(() => {
     setPage(1);
   }, [items]);
@@ -899,9 +896,9 @@ function CustomerReviewSection({ items = [] }) {
         ))}
       </div>
 
-      {/* --- ชุดปุ่มกดเปลี่ยนหน้า (แสดงเฉพาะเมื่อมีมากกว่า 1 หน้า) --- */}
+      {/* --- ชุดปุ่มกดเปลี่ยนหน้า เปลี่ยนจาก justify-center เป็น justify-start --- */}
       {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-center gap-3">
+        <div className="mt-6 flex items-center justify-start gap-3">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
