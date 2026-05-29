@@ -726,7 +726,9 @@ body: JSON.stringify({
 
             <div className="space-y-3 max-h-[540px] overflow-auto pb-4">
 
-              {productsView.map(p => (
+
+
+{productsView.map(p => (
   <div
     key={p.id}
     className="grid grid-cols-[56px_minmax(0,1fr)_96px] gap-3 px-3 py-3 border rounded-xl bg-white overflow-hidden"
@@ -734,15 +736,9 @@ body: JSON.stringify({
     {/* รูปสินค้า */}
     <div className="shrink-0">
       {(p.cover_image || p.image_url) ? (
-        <img
-          src={p.cover_image || p.image_url}
-          className="w-12 h-12 rounded-lg object-cover border"
-          alt=""
-        />
+        <img src={p.cover_image || p.image_url} className="w-12 h-12 rounded-lg object-cover border" alt="" />
       ) : (
-        <div className="w-12 h-12 rounded-lg bg-gray-100 border flex items-center justify-center">
-          📦
-        </div>
+        <div className="w-12 h-12 rounded-lg bg-gray-100 border flex items-center justify-center">📦</div>
       )}
     </div>
 
@@ -751,8 +747,11 @@ body: JSON.stringify({
       <div className="font-semibold text-xs truncate">
         {p.name}
       </div>
+      
+      {/* 🌟 จุดที่เพิ่ม: แสดงป้ายข้อมูลย่อยตรงนี้ */}
+      <AttributeBadges attributes={p.attributes} />
 
-      <div className="text-xs text-gray-500 truncate">
+      <div className="text-xs text-gray-500 truncate mt-1">
         {p.code} • หน่วย {p.unit}
       </div>
 
@@ -765,44 +764,17 @@ body: JSON.stringify({
 
     {/* ราคา / action */}
     <div className="text-right shrink-0 min-w-0">
-      <div className="text-xs whitespace-nowrap">
-        ซื้อ {p.buy_price}
-      </div>
-
-      <div className="text-xs whitespace-nowrap">
-        ขาย {p.sell_price}
-      </div>
-
-      <div
-        className={
-          "text-xs whitespace-nowrap " +
-          (p.stock <= p.min_qty_alert ? "text-red-600" : "text-gray-400")
-        }
-      >
-        คงเหลือ {Number(p.stock ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+      <div className="text-xs whitespace-nowrap">ซื้อ {p.buy_price}</div>
+      <div className="text-xs whitespace-nowrap">ขาย {p.sell_price}</div>
+      <div className={"text-xs whitespace-nowrap " + (p.stock <= p.min_qty_alert ? "text-red-600" : "text-gray-400")}>
+        คงเหลือ {Number(p.stock ?? 0).toLocaleString()}
       </div>
 
       <div className="mt-2 flex flex-col items-end gap-1">
-        <button
-          onClick={() => setImageMgrId(p.id)}
-          className="text-xs font-medium text-indigo-600 hover:underline"
-        >
-          รูปภาพ
-        </button>
-
-        <button
-          onClick={() => handleEdit(p)}
-          className="text-xs font-medium text-blue-600 hover:underline"
-        >
-          แก้ไข
-        </button>
-
-        <button
-          onClick={() => handleDelete(p)}
-          className="text-xs font-medium text-red-600 hover:underline"
-        >
-          ลบ
-        </button>
+        <button onClick={() => setImageMgrId(p.id)} className="text-xs font-medium text-indigo-600 hover:underline">รูปภาพ</button>
+        <button onClick={() => handleClone(p)} className="text-xs font-medium text-amber-600 hover:underline">คัดลอก</button>
+        <button onClick={() => handleEdit(p)} className="text-xs font-medium text-blue-600 hover:underline">แก้ไข</button>
+        <button onClick={() => handleDelete(p)} className="text-xs font-medium text-red-600 hover:underline">ลบ</button>
       </div>
     </div>
   </div>
