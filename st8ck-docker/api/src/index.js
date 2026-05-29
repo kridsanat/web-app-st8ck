@@ -7,10 +7,6 @@ import dotenv from 'dotenv';
 import { query, withTransaction } from './db.js';
 import fs from 'fs';
 import multer from 'multer';
-const {
-  createPresignedUploadUrl,
-  createPresignedReadUrl
-} = require("../s3");
 
 dotenv.config();
 const app = express();
