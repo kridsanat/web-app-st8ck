@@ -749,8 +749,25 @@ function VideoReviewModal({ item, onClose }) {
   );
 }
 // การ์ดวิดีโอรีวิว
+// การ์ดวิดีโอรีวิว (พร้อมระบบแบ่งหน้า ชิดซ้าย)
 function VideoReviewSection({ items = [] }) {
   const [selectedVideo, setSelectedVideo] = React.useState(null);
+
+  // --- เพิ่ม State สำหรับ Pagination ---
+  const [page, setPage] = React.useState(1);
+  const itemsPerPage = 4; // จำนวนที่ต้องการแสดงต่อหน้า (จอคอมจะพอดี 1 แถว)
+  const totalPages = Math.ceil(items.length / itemsPerPage);
+
+  // ตัด array วิดีโอให้เหลือแค่ของหน้าที่กำลังเปิดอยู่
+  const currentItems = items.slice(
+    (page - 1) * itemsPerPage,
+    page * itemsPerPage
+  );
+
+  // รีเซ็ตหน้ากลับไปหน้า 1 เสมอเวลามีข้อมูลใหม่
+  React.useEffect(() => {
+    setPage(1);
+  }, [items]);
 
   if (!items.length) return null;
 
@@ -760,8 +777,9 @@ function VideoReviewSection({ items = [] }) {
         <h2 className="text-xl font-semibold text-gray-900">วิดีโอ</h2>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((item) => (
+      {/* ปรับเป็น 4 คอลัมน์บนจอใหญ่ (มือถือ 1, แท็บเล็ต 2, คอม 4) */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
+        {currentItems.map((item) => (
           <button
             key={item.id}
             type="button"
@@ -773,19 +791,19 @@ function VideoReviewSection({ items = [] }) {
                 <img
                   src={normalizeImage(item.thumbnail_url)}
                   alt={item.title || "video review"}
-                  className="h-[180px] w-full object-cover"
+                  className="aspect-video w-full object-cover"
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
                   }}
                 />
               ) : (
-                <div className="grid h-[180px] w-full place-items-center bg-gray-100 text-gray-400">
+                <div className="grid aspect-video w-full place-items-center bg-gray-100 text-gray-400">
                   ไม่มีภาพปก
                 </div>
               )}
 
               <div className="absolute inset-0 grid place-items-center bg-black/20 opacity-90 transition group-hover:bg-black/30">
-                <div className="grid h-14 w-14 place-items-center rounded-full bg-white/90 text-2xl shadow">
+                <div className="grid h-12 w-12 place-items-center rounded-full bg-white/90 text-xl shadow pl-1">
                   ▶
                 </div>
               </div>
@@ -803,6 +821,31 @@ function VideoReviewSection({ items = [] }) {
           </button>
         ))}
       </div>
+
+      {/* --- ชุดปุ่มกดเปลี่ยนหน้า ชิดซ้าย (justify-start) --- */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-start gap-3">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white"
+          >
+            ‹ ก่อนหน้า
+          </button>
+          
+          <span className="text-sm font-medium text-gray-600">
+            หน้า {page} / {totalPages}
+          </span>
+          
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white"
+          >
+            ถัดไป ›
+          </button>
+        </div>
+      )}
 
       {selectedVideo && (
         <VideoReviewModal
