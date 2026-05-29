@@ -748,23 +748,19 @@ function VideoReviewModal({ item, onClose }) {
     </div>
   );
 }
-// การ์ดวิดีโอรีวิว
-// การ์ดวิดีโอรีวิว (พร้อมระบบแบ่งหน้า ชิดซ้าย)
+// การ์ดวิดีโอรีวิว (แสดง 3 คอลัมน์ และแสดงปุ่มเปลี่ยนหน้าเสมอ)
 function VideoReviewSection({ items = [] }) {
   const [selectedVideo, setSelectedVideo] = React.useState(null);
 
-  // --- เพิ่ม State สำหรับ Pagination ---
   const [page, setPage] = React.useState(1);
-  const itemsPerPage = 4; // จำนวนที่ต้องการแสดงต่อหน้า (จอคอมจะพอดี 1 แถว)
+  const itemsPerPage = 3; // กลับมาใช้ 3 วิดีโอต่อหน้า
   const totalPages = Math.ceil(items.length / itemsPerPage);
 
-  // ตัด array วิดีโอให้เหลือแค่ของหน้าที่กำลังเปิดอยู่
   const currentItems = items.slice(
     (page - 1) * itemsPerPage,
     page * itemsPerPage
   );
 
-  // รีเซ็ตหน้ากลับไปหน้า 1 เสมอเวลามีข้อมูลใหม่
   React.useEffect(() => {
     setPage(1);
   }, [items]);
@@ -777,8 +773,8 @@ function VideoReviewSection({ items = [] }) {
         <h2 className="text-xl font-semibold text-gray-900">วิดีโอ</h2>
       </div>
 
-      {/* ปรับเป็น 4 คอลัมน์บนจอใหญ่ (มือถือ 1, แท็บเล็ต 2, คอม 4) */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
+      {/* ปรับ Grid กลับมาเป็น 3 คอลัมน์สำหรับหน้าจอใหญ่ */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {currentItems.map((item) => (
           <button
             key={item.id}
@@ -822,30 +818,28 @@ function VideoReviewSection({ items = [] }) {
         ))}
       </div>
 
-      {/* --- ชุดปุ่มกดเปลี่ยนหน้า ชิดซ้าย (justify-start) --- */}
-      {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-start gap-3">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white"
-          >
-            ‹ ก่อนหน้า
-          </button>
-          
-          <span className="text-sm font-medium text-gray-600">
-            หน้า {page} / {totalPages}
-          </span>
-          
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white"
-          >
-            ถัดไป ›
-          </button>
-        </div>
-      )}
+      {/* --- ชุดปุ่มกดเปลี่ยนหน้า แสดงเสมอไม่มีเงื่อนไขปิดบัง --- */}
+      <div className="mt-6 flex items-center justify-start gap-3">
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white"
+        >
+          ‹ ก่อนหน้า
+        </button>
+        
+        <span className="text-sm font-medium text-gray-600">
+          หน้า {page} / {totalPages || 1}
+        </span>
+        
+        <button
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          disabled={page >= totalPages}
+          className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white"
+        >
+          ถัดไป ›
+        </button>
+      </div>
 
       {selectedVideo && (
         <VideoReviewModal
