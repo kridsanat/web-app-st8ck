@@ -669,51 +669,88 @@ const submit = async (e) => {
 
             <div className="space-y-3 max-h-[540px] overflow-auto pb-4">
 
-              {productsView.map(p => (
-                <div key={p.id} className="flex items-start justify-between px-4 py-4 border rounded-xl bg-white">
-
- <div className="flex items-center gap-3">
-  {/* เดิมเป็น <ImagePicker p={p} /> */}
-  { (p.cover_image || p.image_url)
-      ? <img src={p.cover_image || p.image_url} className="w-12 h-12 rounded-lg object-cover border" />
-      : <div className="w-12 h-12 rounded-lg bg-gray-100 border flex items-center justify-center">📦</div>
-  }
-  <div>
-    <div className="font-semibold text-xs">{p.name}</div>
-    <div className="text-xs text-gray-500">{p.code} • หน่วย {p.unit}</div>
-    {p.description && (
-  <div className="text-[11px] text-gray-500 max-w-xs truncate">{p.description}</div>
-)}
-
-  </div>
-</div>
-
-                  <div className="text-right flex-shrink-0">
-                    <div className="text-xs">ซื้อ {p.buy_price}</div>
-                    <div className="text-xs">ขาย {p.sell_price}</div>
-                    <div className={"text-xs " + (p.stock <= p.min_qty_alert ? 'text-red-600' : 'text-gray-400')}>
-                    คงเหลือ {Number(p.stock ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    </div>
-
-<div className="mt-2 flex justify-end gap-4">
-<button onClick={() => setImageMgrId(p.id)} className="text-xs font-medium text-indigo-600 hover:underline">
-  รูปภาพ
-</button>
-
-  <button onClick={() => handleEdit(p)} className="text-xs font-medium text-blue-600 hover:underline">แก้ไข</button>
-  <button onClick={() => handleDelete(p)} className="text-xs font-medium text-red-600 hover:underline">ลบ</button>
-</div>
-
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+{productsView.map(p => (
+  <div
+    key={p.id}
+    className="grid grid-cols-[56px_minmax(0,1fr)_96px] gap-3 px-3 py-3 border rounded-xl bg-white overflow-hidden"
+  >
+    {/* รูปสินค้า */}
+    <div className="shrink-0">
+      {(p.cover_image || p.image_url) ? (
+        <img
+          src={p.cover_image || p.image_url}
+          className="w-12 h-12 rounded-lg object-cover border"
+          alt=""
+        />
+      ) : (
+        <div className="w-12 h-12 rounded-lg bg-gray-100 border flex items-center justify-center">
+          📦
         </div>
+      )}
+    </div>
+
+    {/* ข้อมูลสินค้า */}
+    <div className="min-w-0">
+      <div className="font-semibold text-xs truncate">
+        {p.name}
       </div>
-    </>
-  );
-}
+
+      <div className="text-xs text-gray-500 truncate">
+        {p.code} • หน่วย {p.unit}
+      </div>
+
+      {p.description && (
+        <div className="mt-1 text-[11px] text-gray-500 leading-snug line-clamp-2 break-words">
+          {p.description}
+        </div>
+      )}
+    </div>
+
+    {/* ราคา / action */}
+    <div className="text-right shrink-0 min-w-0">
+      <div className="text-xs whitespace-nowrap">
+        ซื้อ {p.buy_price}
+      </div>
+
+      <div className="text-xs whitespace-nowrap">
+        ขาย {p.sell_price}
+      </div>
+
+      <div
+        className={
+          "text-xs whitespace-nowrap " +
+          (p.stock <= p.min_qty_alert ? "text-red-600" : "text-gray-400")
+        }
+      >
+        คงเหลือ {Number(p.stock ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+      </div>
+
+      <div className="mt-2 flex flex-col items-end gap-1">
+        <button
+          onClick={() => setImageMgrId(p.id)}
+          className="text-xs font-medium text-indigo-600 hover:underline"
+        >
+          รูปภาพ
+        </button>
+
+        <button
+          onClick={() => handleEdit(p)}
+          className="text-xs font-medium text-blue-600 hover:underline"
+        >
+          แก้ไข
+        </button>
+
+        <button
+          onClick={() => handleDelete(p)}
+          className="text-xs font-medium text-red-600 hover:underline"
+        >
+          ลบ
+        </button>
+      </div>
+    </div>
+  </div>
+))}
+
 
 
 /**
