@@ -815,13 +815,22 @@ function VideoReviewSection({ items = [] }) {
 }
 
 // การ์ดรีวิวลูกค้า
-// รีวิวลูกค้าแบบเน้นรูป
-// การ์ดรีวิวลูกค้า
-// รีวิวลูกค้าแบบเน้นรูป
+// รีวิวลูกค้าแบบเน้นรูป (พร้อมระบบแบ่งหน้า)
 function CustomerReviewSection({ items = [] }) {
   const [lbOpen, setLbOpen] = React.useState(false);
   const [lbImages, setLbImages] = React.useState([]);
   const [lbIndex, setLbIndex] = React.useState(0);
+
+  // --- เพิ่ม State สำหรับ Pagination ---
+  const [page, setPage] = React.useState(1);
+  const itemsPerPage = 4; // จำนวนที่ต้องการแสดงต่อหน้า (จอคอมจะพอดี 1 แถว)
+  const totalPages = Math.ceil(items.length / itemsPerPage);
+
+  // ตัด array รีวิวให้เหลือแค่ของหน้าที่กำลังเปิดอยู่
+  const currentItems = items.slice(
+    (page - 1) * itemsPerPage,
+    page * itemsPerPage
+  );
 
   const openLightbox = (imageUrl) => {
     if (!imageUrl) return;
@@ -829,6 +838,11 @@ function CustomerReviewSection({ items = [] }) {
     setLbIndex(0);
     setLbOpen(true);
   };
+
+  // รีเซ็ตหน้ากลับไปหน้า 1 เสมอเวลามีข้อมูลรีวิวชุดใหม่เข้ามา
+  React.useEffect(() => {
+    setPage(1);
+  }, [items]);
 
   if (!items.length) return null;
 
@@ -838,13 +852,8 @@ function CustomerReviewSection({ items = [] }) {
         <h2 className="text-xl font-semibold text-gray-900">รีวิว</h2>
       </div>
 
-      {/* ปรับ Grid ใหม่: 
-        มือถือ = 2 กล่อง (รูปจะใหญ่กำลังดี)
-        แท็บเล็ต (sm) = 3 กล่อง
-        จอคอม (md, lg) = 4 กล่อง
-      */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4">
-        {items.map((item) => (
+        {currentItems.map((item) => (
           <div
             key={item.id}
             className="w-full overflow-hidden rounded-2xl border bg-white shadow-sm"
@@ -866,12 +875,10 @@ function CustomerReviewSection({ items = [] }) {
             )}
 
             <div className="p-3">
-              {/* ขยายขนาดตัวหนังสือจาก text-xs เป็น text-sm ให้สมส่วนกับรูปที่ใหญ่ขึ้น */}
               <div className="text-sm font-medium text-gray-900 line-clamp-1">
                 {item.customer_name_mask || item.customer_name || "ลูกค้า"}
               </div>
 
-              {/* ขยายขนาดดาวและข้อความจาก text-[10px] เป็น text-xs */}
               <div className="mt-1 text-xs text-amber-500">
                 {"★".repeat(Number(item.rating || 0))}
               </div>
@@ -891,6 +898,31 @@ function CustomerReviewSection({ items = [] }) {
           </div>
         ))}
       </div>
+
+      {/* --- ชุดปุ่มกดเปลี่ยนหน้า (แสดงเฉพาะเมื่อมีมากกว่า 1 หน้า) --- */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white"
+          >
+            ‹ ก่อนหน้า
+          </button>
+          
+          <span className="text-sm font-medium text-gray-600">
+            หน้า {page} / {totalPages}
+          </span>
+          
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white"
+          >
+            ถัดไป ›
+          </button>
+        </div>
+      )}
 
       {lbOpen && (
         <ImageLightbox
