@@ -395,70 +395,75 @@ const [lbIndex, setLbIndex] = React.useState(0);
 
   const qty = toNum(p.stock_qty);      // << สำคัญ: แปลงให้เป็นตัวเลขหรือ undefined
 
-  return (
-    <div className="group rounded-2xl border p-3 hover:shadow-sm transition bg-white">
-      <div className="relative">
+return (
+  <div className="group flex h-full flex-col rounded-2xl border p-3 hover:shadow-sm transition bg-white overflow-hidden">
+    <div className="relative shrink-0">
+      <ProductImageCarousel
+        images={imgs}
+        onOpen={(i) => {
+          setLbIndex(i);
+          setLbOpen(true);
+        }}
+      />
 
-<ProductImageCarousel
-  images={imgs}
-  onOpen={(i) => { setLbIndex(i); setLbOpen(true); }}
-/>
+      {lbOpen && (
+        <ImageLightbox
+          images={imgs}
+          index={lbIndex}
+          onClose={() => setLbOpen(false)}
+        />
+      )}
 
-{lbOpen && (
-  <ImageLightbox
-    images={imgs}
-    index={lbIndex}
-    onClose={() => setLbOpen(false)}
-  />
-)}
-
-
-
-
-
-        {qty !== undefined && (                          // << แสดง badge เมื่อมีตัวเลขจริง
-          <div
-            className={
-              "absolute left-2 top-2 z-10 rounded-full px-2 py-0.5 text-xs font-medium shadow " +
-              (qty <= 0 ? "bg-red-600 text-white" : "bg-white/90 text-gray-900")
-            }
-          >
-            {qty <= 0 ? "หมดสต๊อก" : `คงเหลือ ${qty}`}
-          </div>
-        )}
-      </div>
-
-      <div className="mt-3">
-        <div className="text-xs text-gray-500">{p.sku}</div>
-        <div className="mt-3 text-xs font-semibold leading-snug">{p.name}</div>
-        <div className="mt-1 text-lg">฿{toMoney(p.price)}</div>
-
-     
-        <button
-          className="mt-3 w-full rounded-xl border px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
-          disabled={qty !== undefined && qty <= 0}       // << disable เฉพาะเมื่อรู้ว่าหมดจริง
-          onClick={() => onAdd(p)}
+      {qty !== undefined && (
+        <div
+          className={
+            "absolute left-2 top-2 z-10 rounded-full px-2 py-0.5 text-xs font-medium shadow " +
+            (qty <= 0 ? "bg-red-600 text-white" : "bg-white/90 text-gray-900")
+          }
         >
-          {qty !== undefined && qty <= 0 ? 'หมดสต๊อก' : '+ เพิ่มลงตะกร้า'}
-        </button>
+          {qty <= 0 ? "หมดสต๊อก" : `คงเหลือ ${qty}`}
+        </div>
+      )}
+    </div>
 
+    <div className="mt-3 flex flex-1 flex-col">
+      {/* ส่วนข้อมูลหลัก: บังคับความสูงให้เท่ากัน */}
+      <div className="min-h-[92px]">
+        <div className="text-xs text-gray-500 truncate">
+          {p.sku}
+        </div>
 
+        <div className="mt-2 text-xs font-semibold leading-snug line-clamp-2 min-h-[34px]">
+          {p.name}
+        </div>
 
-        {/* ⬇️ ใส่บรรทัดนี้ */}
-{p.description && (
-  <div className="mt-3 text-sm text-gray-500 leading-relaxed whitespace-pre-wrap break-words">
-    {p.description}
-  </div>
-)}
-
-    
-
+        <div className="mt-1 text-lg">
+          ฿{toMoney(p.price)}
+        </div>
       </div>
 
+      {/* ปุ่ม: ดันให้อยู่ระดับเดียวกันทุกการ์ด */}
+      <button
+        className="mt-3 w-full rounded-xl border px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+        disabled={qty !== undefined && qty <= 0}
+        onClick={() => onAdd(p)}
+      >
+        {qty !== undefined && qty <= 0 ? "หมดสต๊อก" : "+ เพิ่มลงตะกร้า"}
+      </button>
 
-            
+      {/* รายละเอียดสินค้า: จำกัดพื้นที่ให้เท่ากัน */}
+      {p.description && (
+        <div className="mt-3 min-h-[96px] text-sm text-gray-500 leading-relaxed line-clamp-5 break-words">
+          {p.description}
+        </div>
+      )}
+
+      {!p.description && (
+        <div className="mt-3 min-h-[96px]" />
+      )}
     </div>
-  );
+  </div>
+);
 }
 
 
