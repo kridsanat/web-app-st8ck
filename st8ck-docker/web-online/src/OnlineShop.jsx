@@ -445,11 +445,11 @@ const [lbIndex, setLbIndex] = React.useState(0);
 
 
         {/* ⬇️ ใส่บรรทัดนี้ */}
-        {p.description && (
-          <div className="mt-3 text-sm text-gray-500 line-clamp-2">
-            {p.description}
-          </div>
-        )}
+{p.description && (
+  <div className="mt-3 text-sm text-gray-500 leading-relaxed line-clamp-5 min-h-[96px]">
+    {p.description}
+  </div>
+)}
 
     
 
