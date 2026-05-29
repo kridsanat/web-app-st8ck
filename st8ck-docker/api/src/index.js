@@ -934,41 +934,6 @@ app.patch('/api/reviews/:id/toggle', async (req, res) => {
 app.use(express.static(publicDir));
 app.get('*', (req,res)=> res.sendFile(path.join(publicDir, 'index.html')));
 
-app.post("/api/uploads/presign", async (req, res) => {
-  try {
-    const { filename, contentType } = req.body || {};
-
-    if (!filename) {
-      return res.status(400).json({
-        error: "filename is required"
-      });
-    }
-
-    const result = await createPresignedUploadUrl({
-      filename,
-      contentType
-    });
-
-    return res.json(result);
-  } catch (err) {
-    console.error("create presigned upload url error:", err);
-    return res.status(500).json({
-      error: "failed to create presigned upload url"
-    });
-  }
-});
-
-app.get("/uploads/:filename", async (req, res) => {
-  try {
-    const key = `uploads/${req.params.filename}`;
-    const signedUrl = await createPresignedReadUrl(key);
-
-    return res.redirect(302, signedUrl);
-  } catch (err) {
-    console.error("create presigned read url error:", err);
-    return res.status(404).send("File not found");
-  }
-});
 
 const port = process.env.PORT || 3000;
 app.listen(port, ()=> console.log('St8ck listening on', port));
