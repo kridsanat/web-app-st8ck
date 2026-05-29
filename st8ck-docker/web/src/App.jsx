@@ -669,7 +669,7 @@ const submit = async (e) => {
 
             <div className="space-y-3 max-h-[540px] overflow-auto pb-4">
 
-{productsView.map(p => (
+              {productsView.map(p => (
   <div
     key={p.id}
     className="grid grid-cols-[56px_minmax(0,1fr)_96px] gap-3 px-3 py-3 border rounded-xl bg-white overflow-hidden"
@@ -750,7 +750,13 @@ const submit = async (e) => {
     </div>
   </div>
 ))}
-
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
 
 
 /**
