@@ -230,7 +230,7 @@ function ProductCard({ p, onAdd }) {
       alert("กรุณาเลือกตัวเลือกสินค้าก่อนหยิบลงตะกร้า");
       return;
     }
-    onAdd(selectedV); // ส่งสินค้าย่อยที่เลือกไปลงตะกร้า (ID จะตรงกับ DB เลย)
+    onAdd(selectedV || p); // ส่งสินค้าย่อยที่เลือก หรือตัวหลักไปลงตะกร้า
   };
 
   return (
@@ -250,7 +250,7 @@ function ProductCard({ p, onAdd }) {
         <div className="mt-3 text-xs font-semibold leading-snug">{p.name}</div>
         <div className="mt-1 text-lg">฿{displayPriceText}</div>
 
-        {/* ถ้ามีหลายตัวเลือก (Grouped) ให้แสดง Dropdown เดียว */}
+        {/* ถ้ามีหลายตัวเลือก (Grouped) ให้แสดง Dropdown */}
         {p.isGroup && (
           <div className="mt-3 space-y-2">
             <select
@@ -281,8 +281,24 @@ function ProductCard({ p, onAdd }) {
           </div>
         )}
 
+        {/* แสดงรายละเอียดย่อย (Attributes) กรณีที่มีแค่ตัวเลือกเดียว */}
+        {!p.isGroup && Array.isArray(p.attributes) && p.attributes.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1">
+            {p.attributes.map((attr, idx) => {
+              const val = attr.value || attr.val || attr.option || attr.options?.[0] || '';
+              if (!val) return null;
+              return (
+                <span key={idx} className="rounded bg-blue-50 px-2 py-1 text-xs text-blue-700 border border-blue-100">
+                  {attr.name ? `${attr.name}: ` : ''}{val}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
+        {/* นำ line-clamp-2 ออกเพื่อให้แสดงรายละเอียดสินค้าครบทั้งหมด */}
         {p.description && (
-          <div className="mt-3 text-sm text-gray-500 leading-relaxed whitespace-pre-wrap break-words line-clamp-2">
+          <div className="mt-3 text-sm text-gray-500 leading-relaxed whitespace-pre-wrap break-words">
             {p.description}
           </div>
         )}
