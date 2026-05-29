@@ -816,6 +816,8 @@ function VideoReviewSection({ items = [] }) {
 
 // การ์ดรีวิวลูกค้า
 // รีวิวลูกค้าแบบเน้นรูป
+// การ์ดรีวิวลูกค้า
+// รีวิวลูกค้าแบบเน้นรูป
 function CustomerReviewSection({ items = [] }) {
   const [lbOpen, setLbOpen] = React.useState(false);
   const [lbImages, setLbImages] = React.useState([]);
@@ -836,8 +838,12 @@ function CustomerReviewSection({ items = [] }) {
         <h2 className="text-xl font-semibold text-gray-900">รีวิว</h2>
       </div>
 
-{/* บนมือถือปรับเป็นแถวละ 3 กล่อง (จากเดิม 2) และหน้าจอใหญ่เป็นแถวละ 8 กล่อง (จากเดิม 6) */}
-<div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+      {/* ปรับ Grid ใหม่: 
+        มือถือ = 2 กล่อง (รูปจะใหญ่กำลังดี)
+        แท็บเล็ต (sm) = 3 กล่อง
+        จอคอม (md, lg) = 4 กล่อง
+      */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4">
         {items.map((item) => (
           <div
             key={item.id}
@@ -859,23 +865,25 @@ function CustomerReviewSection({ items = [] }) {
               </div>
             )}
 
-            <div className="p-2">
-              <div className="text-xs font-medium text-gray-900">
+            <div className="p-3">
+              {/* ขยายขนาดตัวหนังสือจาก text-xs เป็น text-sm ให้สมส่วนกับรูปที่ใหญ่ขึ้น */}
+              <div className="text-sm font-medium text-gray-900 line-clamp-1">
                 {item.customer_name_mask || item.customer_name || "ลูกค้า"}
               </div>
 
-              <div className="mt-1 text-[10px] text-amber-500">
+              {/* ขยายขนาดดาวและข้อความจาก text-[10px] เป็น text-xs */}
+              <div className="mt-1 text-xs text-amber-500">
                 {"★".repeat(Number(item.rating || 0))}
               </div>
 
               {item.order_text && (
-                <div className="mt-1 text-[10px] text-gray-500 line-clamp-1">
+                <div className="mt-1 text-xs text-gray-500 line-clamp-1">
                   {item.order_text}
                 </div>
               )}
 
               {item.comment && (
-                <div className="mt-1 text-[10px] text-gray-700 line-clamp-2">
+                <div className="mt-1 text-xs text-gray-700 line-clamp-2">
                   {item.comment}
                 </div>
               )}
