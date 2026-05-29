@@ -47,7 +47,6 @@ function useCart() {
       const raw = window.localStorage.getItem("shop_cart_v1");
       return raw ? JSON.parse(raw) : [];
     } catch (e) {
-      console.warn("read cart failed:", e);
       return [];
     }
   };
@@ -56,10 +55,7 @@ function useCart() {
     try {
       if (typeof window === "undefined" || !window.localStorage) return;
       window.localStorage.setItem("shop_cart_v1", JSON.stringify(items));
-    } catch (e) {
-      // กันหน้าเว็บพังบนมือถือ/private mode
-      console.warn("write cart failed:", e);
-    }
+    } catch (e) {}
   };
 
   const [items, setItems] = useState(() => safeReadCart());
@@ -68,59 +64,45 @@ function useCart() {
     safeWriteCart(items);
   }, [items]);
 
+  const getCartId = (p) => {
+    if (!p.selectedOpts || Object.keys(p.selectedOpts).length === 0) return String(p.id);
+    const opts = Object.keys(p.selectedOpts).sort().map(k => `${k}=${p.selectedOpts[k]}`).join('&');
+    return `${p.id}_${opts}`;
+  };
+
   const add = (p, qty = 1) =>
     setItems((prev) => {
-      const f = prev.find((x) => x.id === p.id);
+      const cid = getCartId(p);
+      const f = prev.find((x) => x.cart_id === cid || (!x.cart_id && x.id === p.id));
       if (f)
         return prev.map((x) =>
-          x.id === p.id
+          (x.cart_id === cid || (!x.cart_id && x.id === p.id))
             ? {
                 ...x,
-                qty: clamp(
-                  x.qty + qty,
-                  1,
-                  typeof p.stock_qty === "number" ? p.stock_qty : 999
-                ),
+                qty: clamp(x.qty + qty, 1, typeof p.stock_qty === "number" ? p.stock_qty : 999),
               }
             : x
         );
       return [
         ...prev,
-        {
-          ...p,
-          qty: clamp(
-            qty,
-            1,
-            typeof p.stock_qty === "number" ? p.stock_qty : 999
-          ),
-        },
+        { ...p, cart_id: cid, qty: clamp(qty, 1, typeof p.stock_qty === "number" ? p.stock_qty : 999) },
       ];
     });
 
-  const setQty = (id, qty) =>
+  const setQty = (cart_id, qty) =>
     setItems((prev) =>
       prev.map((x) =>
-        x.id === id
-          ? {
-              ...x,
-              qty: clamp(
-                qty,
-                1,
-                typeof x.stock_qty === "number" ? x.stock_qty : 999
-              ),
-            }
+        (x.cart_id === cart_id || x.id === cart_id)
+          ? { ...x, qty: clamp(qty, 1, typeof x.stock_qty === "number" ? x.stock_qty : 999) }
           : x
       )
     );
 
-  const remove = (id) => setItems((prev) => prev.filter((x) => x.id !== id));
+  const remove = (cart_id) => setItems((prev) => prev.filter((x) => x.cart_id !== cart_id && x.id !== cart_id));
   const clear = () => setItems([]);
 
   const totals = useMemo(() => {
-    const subtotal = items.reduce(
-      (s, x) => s + Number(x.price) * Number(x.qty),
-      0
-    );
+    const subtotal = items.reduce((s, x) => s + Number(x.price) * Number(x.qty), 0);
     return { subtotal, shipping: 0, grand: subtotal };
   }, [items]);
 
@@ -375,7 +357,6 @@ function ProductCard({ p, onAdd }) {
   const [imgs, setImgs] = React.useState(() => extractImages(p));
   React.useEffect(() => { setImgs(extractImages(p)); }, [p]);
 
-  // โหลดรูปเพิ่ม (เหมือนเดิม)
   React.useEffect(() => {
     if (!p?.id || imgs.length > 1) return;
     (async () => {
@@ -389,29 +370,80 @@ function ProductCard({ p, onAdd }) {
     })();
   }, [p?.id, imgs.length]);
 
+  const [lbOpen, setLbOpen]   = React.useState(false);
+  const [lbIndex, setLbIndex] = React.useState(0);
+  const [selectedOpts, setSelectedOpts] = React.useState({}); // เก็บค่าที่ลูกค้าเลือก
 
-const [lbOpen, setLbOpen]   = React.useState(false);
-const [lbIndex, setLbIndex] = React.useState(0);
+  const qty = toNum(p.stock_qty);
+  const attrs = p.attributes || []; // ดึง attributes มาใช้
 
-  const qty = toNum(p.stock_qty);      // << สำคัญ: แปลงให้เป็นตัวเลขหรือ undefined
+  const handleAdd = () => {
+    if (attrs.length > 0) {
+      const missing = attrs.filter(a => !selectedOpts[a.name]);
+      if (missing.length > 0) {
+        alert(`กรุณาเลือก: ${missing.map(m => m.name).join(', ')}`);
+        return;
+      }
+    }
+    onAdd({ ...p, selectedOpts });
+  };
 
   return (
-    <div className="group rounded-2xl border p-3 hover:shadow-sm transition bg-white">
-      <div className="relative">
+    <div className="group rounded-2xl border p-3 hover:shadow-sm transition bg-white flex flex-col">
+      <div className="relative shrink-0">
+        <ProductImageCarousel images={imgs} onOpen={(i) => { setLbIndex(i); setLbOpen(true); }} />
+        {lbOpen && <ImageLightbox images={imgs} index={lbIndex} onClose={() => setLbOpen(false)} />}
+        {qty !== undefined && (
+          <div className={"absolute left-2 top-2 z-10 rounded-full px-2 py-0.5 text-xs font-medium shadow " + (qty <= 0 ? "bg-red-600 text-white" : "bg-white/90 text-gray-900")}>
+            {qty <= 0 ? "หมดสต๊อก" : `คงเหลือ ${qty}`}
+          </div>
+        )}
+      </div>
 
-<ProductImageCarousel
-  images={imgs}
-  onOpen={(i) => { setLbIndex(i); setLbOpen(true); }}
-/>
+      <div className="mt-3 flex flex-col flex-1">
+        <div className="text-xs text-gray-500">{p.sku}</div>
+        <div className="mt-3 text-xs font-semibold leading-snug">{p.name}</div>
+        <div className="mt-1 text-lg">฿{toMoney(p.price)}</div>
 
-{lbOpen && (
-  <ImageLightbox
-    images={imgs}
-    index={lbIndex}
-    onClose={() => setLbOpen(false)}
-  />
-)}
+        {/* Dropdown เลือกสี/ไซส์ */}
+        {attrs.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {attrs.map((attr, idx) => (
+              <div key={idx}>
+                <select
+                  className="w-full border rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-gray-300"
+                  value={selectedOpts[attr.name] || ''}
+                  onChange={(e) => setSelectedOpts(prev => ({...prev, [attr.name]: e.target.value}))}
+                >
+                  <option value="">-- เลือก {attr.name} --</option>
+                  {(attr.options || []).map((opt, i) => (
+                    <option key={i} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        )}
 
+        {p.description && (
+          <div className="mt-3 text-sm text-gray-500 leading-relaxed whitespace-pre-wrap break-words line-clamp-2">
+            {p.description}
+          </div>
+        )}
+
+        <div className="mt-auto pt-3">
+          <button
+            className="w-full rounded-xl border px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+            disabled={qty !== undefined && qty <= 0}
+            onClick={handleAdd}
+          >
+            {qty !== undefined && qty <= 0 ? 'หมดสต๊อก' : '+ เพิ่มลงตะกร้า'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 
 
@@ -526,6 +558,11 @@ function CartDrawer({
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm text-gray-500">{it.sku}</div>
                   <div className="truncate font-medium">{it.name}</div>
+                  {it.selectedOpts && Object.keys(it.selectedOpts).length > 0 && (
+  <div className="text-xs text-blue-600 mb-1">
+    {Object.entries(it.selectedOpts).map(([k, v]) => `${k}: ${v}`).join(' | ')}
+  </div>
+)}
                   <div className="text-sm">
                     ฿{toMoney(it.price)} × {it.qty} ={" "}
                     <b>฿{toMoney(it.price * it.qty)}</b>
@@ -1241,6 +1278,7 @@ useEffect(() => {
           images: imgs,
           stock_qty, // ← ตรงนี้จะได้ตัวเลขแน่ ถ้ามีใน /api/products หรือ /api/stock
           description: p.description || "",   // ⬅️ เพิ่มบรรทัดนี้
+          attributes: Array.isArray(p.attributes) ? p.attributes : (typeof p.attributes === 'string' ? JSON.parse(p.attributes || '[]') : []),
         };
       });
 
@@ -1356,6 +1394,7 @@ const filtered = useMemo(() => {
           images: imgs,
           stock_qty,
           description: p.description || "",
+          attributes: Array.isArray(p.attributes) ? p.attributes : (typeof p.attributes === 'string' ? JSON.parse(p.attributes || '[]') : []),
         };
       });
       setProducts(normalized);
