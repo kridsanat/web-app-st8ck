@@ -735,7 +735,8 @@ body: JSON.stringify({
 {productsView.map(p => (
   <div
     key={p.id}
-    className="grid grid-cols-[56px_minmax(0,1fr)_96px] gap-3 px-3 py-3 border rounded-xl bg-white overflow-hidden"
+    // 🌟 จุดที่ 1: แก้จาก 96px เป็น 120px เพื่อเพิ่มพื้นที่ฝั่งขวา
+    className="grid grid-cols-[56px_minmax(0,1fr)_120px] gap-3 px-3 py-3 border rounded-xl bg-white overflow-hidden"
   >
     {/* รูปสินค้า */}
     <div className="shrink-0">
@@ -752,7 +753,6 @@ body: JSON.stringify({
         {p.name}
       </div>
       
-      {/* 🌟 จุดที่เพิ่ม: แสดงป้ายข้อมูลย่อยตรงนี้ */}
       <AttributeBadges attributes={p.attributes} />
 
       <div className="text-xs text-gray-500 truncate mt-1">
@@ -766,23 +766,25 @@ body: JSON.stringify({
       )}
     </div>
 
-{/* ราคา / action */}
+    {/* ราคา / action */}
     <div className="text-right shrink-0 min-w-0">
       <div className="text-xs whitespace-nowrap text-gray-500">ซื้อ {p.buy_price}</div>
       
-      {/* 🌟 จุดที่แก้ไข: แสดงราคาเต็มแบบขีดฆ่า และไฮไลท์ราคาขายสีแดงเมื่อมีส่วนลด */}
-      <div className="text-xs whitespace-nowrap mt-0.5">
+      {/* 🌟 จุดที่ 2: จัดระเบียบราคาขายให้ซ้อนกันแนวตั้ง จะได้ไม่ล้นจอ */}
+      <div className="flex flex-col items-end mt-0.5">
         {p.original_price && Number(p.original_price) > Number(p.sell_price) && (
-          <span className="text-[10px] text-gray-400 line-through mr-1.5">
+          <span className="text-[10px] text-gray-400 line-through leading-none mb-0.5">
             {p.original_price}
           </span>
         )}
-        ขาย <span className={p.original_price && Number(p.original_price) > Number(p.sell_price) ? "text-red-600 font-semibold" : ""}>
-          {p.sell_price}
-        </span>
+        <div className="text-xs whitespace-nowrap leading-none mt-0.5">
+          ขาย <span className={p.original_price && Number(p.original_price) > Number(p.sell_price) ? "text-red-600 font-semibold" : ""}>
+            {p.sell_price}
+          </span>
+        </div>
       </div>
 
-      <div className={"text-xs whitespace-nowrap mt-0.5 " + (p.stock <= p.min_qty_alert ? "text-red-600" : "text-gray-500")}>
+      <div className={"text-xs whitespace-nowrap mt-1 " + (p.stock <= p.min_qty_alert ? "text-red-600" : "text-gray-500")}>
         คงเหลือ {Number(p.stock ?? 0).toLocaleString()}
       </div>
 
