@@ -247,7 +247,7 @@ function ConfirmationModal({ show, onConfirm, onCancel, title, children }) {
 function ProductTab() {
   const { data: products, loading, error, setData: setProducts } = useFetch('/api/products');
   const { data: stockRows, setData: setStockRows } = useFetch('/api/stock'); // << เพิ่มบรรทัดนี้
-  const initialFormState = { code: '', name: '', description: '', unit: 'ชิ้น', sell_price: '', buy_price: '', min_qty_alert: '', image_url: '', attributes: [] };
+  const initialFormState = { code: '', name: '', description: '', unit: 'ชิ้น', sell_price: '', buy_price: '', min_qty_alert: '', image_url: '', attributes: [], original_price: '' };
   const [form, setForm] = useState(initialFormState);
   const [busy, setBusy] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -479,7 +479,8 @@ body: JSON.stringify({
         min_qty_alert: Number(form.min_qty_alert) || 0,
         image_url: form.image_url || null,
         description: form.description || null,
-        attributes: form.attributes || [] // ส่งข้อมูลตัวเลือกย่อยไป Backend
+        attributes: form.attributes || [], // ส่งข้อมูลตัวเลือกย่อยไป Backend
+        original_price: form.original_price ? Number(form.original_price) : null // 👈 เพิ่มบรรทัดนี้
       }),
     });
 
@@ -579,14 +580,17 @@ body: JSON.stringify({
                   <input type="number" className="input w-full text-base" value={form.min_qty_alert} onChange={e => setForm({ ...form, min_qty_alert: e.target.value })} placeholder="5" />
                 </Labeled>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Labeled label="ราคาซื้อ">
-                  <input type="number" className="input w-full text-base" value={form.buy_price} onChange={e => setForm({ ...form, buy_price: e.target.value })} placeholder="80" />
-                </Labeled>
-                <Labeled label="ราคาขาย">
-                  <input type="number" className="input w-full text-base" value={form.sell_price} onChange={e => setForm({ ...form, sell_price: e.target.value })} placeholder="120" />
-                </Labeled>
-              </div>
+<div className="grid grid-cols-3 gap-3">
+  <Labeled label="ราคาซื้อ">
+    <input type="number" className="input w-full text-base" value={form.buy_price} onChange={e => setForm({ ...form, buy_price: e.target.value })} placeholder="80" />
+  </Labeled>
+  <Labeled label="ราคาเต็ม (ก่อนลด)">
+    <input type="number" className="input w-full text-base" value={form.original_price || ''} onChange={e => setForm({ ...form, original_price: e.target.value })} placeholder="150" />
+  </Labeled>
+  <Labeled label="ราคาขายจริง">
+    <input type="number" className="input w-full text-base" value={form.sell_price} onChange={e => setForm({ ...form, sell_price: e.target.value })} placeholder="120" />
+  </Labeled>
+</div>
               <Labeled label="ตัวเลือกย่อย (เช่น ขนาด, สี)">
   <div className="space-y-2 p-3 bg-gray-50 border rounded-xl">
     {(form.attributes || []).map((attr, i) => (
