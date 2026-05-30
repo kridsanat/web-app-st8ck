@@ -566,8 +566,64 @@ function VideoReviewModal({ item, onClose }) {
   );
 }
 
+// 1. เพิ่ม Component ใหม่นี้เข้าไปด้านบนๆ ของไฟล์ (หรือก่อน VideoReviewSection)
+function InlineVideoCard({ item }) {
+  const [isPlaying, setIsPlaying] = React.useState(false);
+  const videoUrl = item.video_url || "";
+  const youtubeId = getYoutubeId(videoUrl);
+  const directVideo = isDirectVideoUrl(videoUrl);
+
+  return (
+    <div className="group overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition hover:shadow-md flex flex-col">
+      {isPlaying ? (
+        // ส่วนนี้คือตอนที่กด Play แล้ว จะแสดงตัวเล่นวิดีโอ
+        <div className="aspect-video w-full bg-black relative">
+          {youtubeId ? (
+            <iframe 
+              className="absolute inset-0 h-full w-full" 
+              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=0`} 
+              title={item.title || "video review"} 
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+              allowFullScreen 
+            />
+          ) : directVideo ? (
+            <video 
+              src={normalizeImage(videoUrl)} 
+              className="absolute inset-0 h-full w-full bg-black object-contain" 
+              controls autoPlay playsInline 
+            />
+          ) : (
+            <div className="grid h-full place-items-center bg-white p-4 text-center">
+              <a href={videoUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline text-sm">
+                เปิดวิดีโอ (ลิงก์ภายนอก)
+              </a>
+            </div>
+          )}
+        </div>
+      ) : (
+        // ส่วนนี้คือรูปปกก่อนกด Play
+        <div className="relative cursor-pointer" onClick={() => setIsPlaying(true)}>
+          {item.thumbnail_url ? (
+            <img src={normalizeImage(item.thumbnail_url)} alt={item.title || "video"} className="aspect-video w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+          ) : (
+            <div className="grid aspect-video w-full place-items-center bg-gray-100 text-gray-400">ไม่มีภาพปก</div>
+          )}
+          <div className="absolute inset-0 grid place-items-center bg-black/20 opacity-90 transition group-hover:bg-black/30">
+            <div className="grid h-12 w-12 place-items-center rounded-full bg-white/90 text-xl shadow pl-1">▶</div>
+          </div>
+        </div>
+      )}
+      
+      <div className="p-3">
+        <div className="line-clamp-2 text-sm font-semibold text-gray-800">{item.title || "วิดีโอรีวิว"}</div>
+        <div className="mt-1 text-xs text-gray-500">{item.platform || "video"}</div>
+      </div>
+    </div>
+  );
+}
+
+// 2. แทนที่ VideoReviewSection เดิมด้วยอันนี้
 function VideoReviewSection({ items = [] }) {
-  const [selectedVideo, setSelectedVideo] = React.useState(null);
   const [page, setPage] = React.useState(1);
   const itemsPerPage = 3; 
   const totalPages = Math.ceil(items.length / itemsPerPage);
@@ -578,33 +634,23 @@ function VideoReviewSection({ items = [] }) {
 
   return (
     <section className="mt-10">
-      <div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-semibold text-gray-900">วิดีโอ</h2></div>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900">วิดีโอ</h2>
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {currentItems.map((item) => (
-          <button key={item.id} type="button" onClick={() => setSelectedVideo(item)} className="group overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition hover:shadow-md">
-            <div className="relative">
-              {item.thumbnail_url ? (
-                <img src={normalizeImage(item.thumbnail_url)} alt={item.title || "video review"} className="aspect-video w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-              ) : (
-                <div className="grid aspect-video w-full place-items-center bg-gray-100 text-gray-400">ไม่มีภาพปก</div>
-              )}
-              <div className="absolute inset-0 grid place-items-center bg-black/20 opacity-90 transition group-hover:bg-black/30">
-                <div className="grid h-12 w-12 place-items-center rounded-full bg-white/90 text-xl shadow pl-1">▶</div>
-              </div>
-            </div>
-            <div className="p-3">
-              <div className="line-clamp-2 text-sm font-semibold text-gray-800">{item.title || "วิดีโอรีวิว"}</div>
-              <div className="mt-1 text-xs text-gray-500">{item.platform || "video"}</div>
-            </div>
-          </button>
+          // เรียกใช้ InlineVideoCard แทนปุ่มแบบเดิม
+          <InlineVideoCard key={item.id} item={item} />
         ))}
       </div>
-      <div className="mt-6 flex items-center justify-start gap-3">
-        <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white">‹ ก่อนหน้า</button>
-        <span className="text-sm font-medium text-gray-600">หน้า {page} / {totalPages || 1}</span>
-        <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white">ถัดไป ›</button>
-      </div>
-      {selectedVideo && <VideoReviewModal item={selectedVideo} onClose={() => setSelectedVideo(null)} />}
+      
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-start gap-3">
+          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white">‹ ก่อนหน้า</button>
+          <span className="text-sm font-medium text-gray-600">หน้า {page} / {totalPages}</span>
+          <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white">ถัดไป ›</button>
+        </div>
+      )}
     </section>
   );
 }
