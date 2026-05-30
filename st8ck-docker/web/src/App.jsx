@@ -584,7 +584,7 @@ body: JSON.stringify({
   <Labeled label="ราคาซื้อ">
     <input type="number" className="input w-full text-base" value={form.buy_price} onChange={e => setForm({ ...form, buy_price: e.target.value })} placeholder="80" />
   </Labeled>
-  <Labeled label="ราคาเต็ม (ก่อนลด)">
+  <Labeled label="ราคาเต็ม">
     <input type="number" className="input w-full text-base" value={form.original_price || ''} onChange={e => setForm({ ...form, original_price: e.target.value })} placeholder="150" />
   </Labeled>
   <Labeled label="ราคาขายจริง">
