@@ -225,30 +225,60 @@ function ProductCard({ p, onAdd }) {
   const currentQty = selectedV ? toNum(selectedV.stock_qty) : p.totalStock;
   const displayPriceText = selectedV ? toMoney(selectedV.price) : p.displayPrice;
 
+  // --- 🌟 ส่วนคำนวณส่วนลด ---
+  const currentPriceNum = selectedV ? toNum(selectedV.price) : toNum(p.price);
+  const originalPrice = selectedV ? toNum(selectedV.original_price) : toNum(p.original_price);
+  
+  const hasDiscount = originalPrice && originalPrice > currentPriceNum;
+  const discountPercent = hasDiscount 
+    ? Math.round(((originalPrice - currentPriceNum) / originalPrice) * 100) 
+    : 0;
+  // -------------------------
+
   const handleAdd = () => {
     if (p.isGroup && !selectedV) {
       alert("กรุณาเลือกตัวเลือกสินค้าก่อนหยิบลงตะกร้า");
       return;
     }
-    onAdd(selectedV || p); // ส่งสินค้าย่อยที่เลือก หรือตัวหลักไปลงตะกร้า
+    onAdd(selectedV || p);
   };
 
   return (
-    <div className="group rounded-2xl border p-3 hover:shadow-sm transition bg-white flex flex-col">
+    <div className="group rounded-2xl border p-3 hover:shadow-sm transition bg-white flex flex-col relative">
       <div className="relative shrink-0">
         <ProductImageCarousel images={imgs} onOpen={(i) => { setLbIndex(i); setLbOpen(true); }} />
         {lbOpen && <ImageLightbox images={imgs} index={lbIndex} onClose={() => setLbOpen(false)} />}
+        
+        {/* ป้ายสต๊อกคงเหลือ (ซ้ายบน) */}
         {currentQty !== undefined && (
           <div className={"absolute left-2 top-2 z-10 rounded-full px-2 py-0.5 text-xs font-medium shadow " + (currentQty <= 0 ? "bg-red-600 text-white" : "bg-white/90 text-gray-900")}>
             {currentQty <= 0 ? "หมดสต๊อก" : `คงเหลือ ${currentQty}`}
+          </div>
+        )}
+
+        {/* 🌟 ป้าย % ส่วนลด (ขวาบน) */}
+        {hasDiscount && (
+          <div className="absolute right-2 top-2 z-10 rounded bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600 shadow-sm border border-red-200">
+            ลด {discountPercent}%
           </div>
         )}
       </div>
 
       <div className="mt-3 flex flex-col flex-1">
         <div className="text-xs text-gray-500">{p.sku}</div>
-        <div className="mt-3 text-xs font-semibold leading-snug">{p.name}</div>
-        <div className="mt-1 text-lg">฿{displayPriceText}</div>
+        <div className="mt-2 text-sm font-semibold leading-snug">{p.name}</div>
+        
+        {/* 🌟 ส่วนแสดงราคา: ปรับให้แสดงราคาลดตัวแดง และราคาเต็มขีดฆ่า */}
+        <div className="mt-1 flex items-baseline gap-2 flex-wrap">
+          <span className={`text-lg font-bold ${hasDiscount ? 'text-red-600' : ''}`}>
+            ฿{displayPriceText}
+          </span>
+          {hasDiscount && (
+            <span className="text-xs text-gray-400 line-through">
+              ฿{toMoney(originalPrice)}
+            </span>
+          )}
+        </div>
 
         {/* ถ้ามีหลายตัวเลือก (Grouped) ให้แสดง Dropdown */}
         {p.isGroup && (
@@ -261,14 +291,10 @@ function ProductCard({ p, onAdd }) {
               <option value="">-- เลือกรูปแบบ --</option>
               {p.variants.map((v) => {
                 let label = "";
-                
-                // ดึงค่าจาก Attributes มาโชว์ (ถ้ามี)
                 const attrs = Array.isArray(v.attributes) ? v.attributes : [];
                 if (attrs.length > 0) {
                   label = attrs.map(a => a.value || a.val || a.option || a.options?.[0] || '').filter(Boolean).join(', ');
                 }
-                
-                // ถ้าไม่มี Attribute ให้ใช้ SKU หรือ ชื่อแทน
                 if (!label && v.sku) label = `รหัส: ${v.sku}`;
                 if (!label) label = v.name;
 
@@ -296,9 +322,9 @@ function ProductCard({ p, onAdd }) {
           </div>
         )}
 
-        {/* นำ line-clamp-2 ออกเพื่อให้แสดงรายละเอียดสินค้าครบทั้งหมด */}
+        {/* Description แสดงเต็มบรรทัด */}
         {p.description && (
-          <div className="mt-3 text-sm text-gray-500 leading-relaxed whitespace-pre-wrap break-words">
+          <div className="mt-3 text-xs text-gray-500 leading-relaxed whitespace-pre-wrap break-words">
             {p.description}
           </div>
         )}
