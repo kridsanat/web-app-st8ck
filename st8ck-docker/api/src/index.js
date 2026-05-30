@@ -210,11 +210,13 @@ async function getProductWithImages(id) {
 // CREATE product
 // CREATE product
 app.post('/api/products', async (req, res) => {
-  const { code, name, unit, sell_price, buy_price, min_qty_alert, image_url, description, attributes } = req.body || {};
+  // เพิ่ม original_price ในบรรทัดรับค่า
+  const { code, name, unit, sell_price, buy_price, min_qty_alert, image_url, description, attributes, original_price } = req.body || {};
   try {
     const r = await query(
-      `INSERT INTO products(code, name, unit, sell_price, buy_price, min_qty_alert, image_url, description, attributes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      // เพิ่ม original_price ใน SQL
+      `INSERT INTO products(code, name, unit, sell_price, buy_price, min_qty_alert, image_url, description, attributes, original_price)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING *`,
       [
         String(code||'').trim(),
@@ -225,7 +227,8 @@ app.post('/api/products', async (req, res) => {
         Number(min_qty_alert)||0,
         image_url || null,
         description || null,
-        JSON.stringify(attributes || [])
+        JSON.stringify(attributes || []),
+        original_price ? Number(original_price) : null // <--- ส่งค่าลง DB
       ]
     );
     res.status(201).json(r.rows[0]);
@@ -360,18 +363,21 @@ app.patch('/api/products/:id/image', async (req, res) => {
 
 app.put('/api/products/:id', async (req,res)=>{
   const id = req.params.id;
-  const { code, name, unit, sell_price, buy_price, min_qty_alert, image_url, description, attributes } = req.body || {};
+  // เพิ่ม original_price ในบรรทัดรับค่า
+  const { code, name, unit, sell_price, buy_price, min_qty_alert, image_url, description, attributes, original_price } = req.body || {};
   try{
     const r = await query(
+      // เพิ่ม original_price ใน SQL
       `UPDATE products
          SET code=$1, name=$2, unit=$3, sell_price=$4, buy_price=$5,
-             min_qty_alert=$6, image_url=$7, description=$8, attributes=$9
-       WHERE id=$10
+             min_qty_alert=$6, image_url=$7, description=$8, attributes=$9, original_price=$10
+       WHERE id=$11
        RETURNING *`,
       [
         code, name, unit, sell_price, buy_price, 
         min_qty_alert, image_url, description, 
         JSON.stringify(attributes || []), 
+        original_price ? Number(original_price) : null, // <--- ส่งค่าลง DB
         id
       ]
     );
@@ -439,7 +445,8 @@ await query(`ALTER TABLE bills ADD COLUMN IF NOT EXISTS customer_name TEXT`);
 await query(`ALTER TABLE bills ADD COLUMN IF NOT EXISTS customer_address TEXT`);
 await query(`ALTER TABLE bills ADD COLUMN IF NOT EXISTS customer_phone TEXT`);
 await query(`ALTER TABLE bills ADD COLUMN IF NOT EXISTS customer_note TEXT`);
-
+// อัปเดตฐานข้อมูลให้รองรับราคาเต็ม (Original Price)
+await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS original_price NUMERIC(12,2) DEFAULT NULL`);
 // สร้างบิล + รายการ
 // ควรเหลืออันนี้อันเดียวพอ
 app.post('/api/bills', async (req, res) => {
