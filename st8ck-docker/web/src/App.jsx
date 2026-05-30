@@ -766,11 +766,23 @@ body: JSON.stringify({
       )}
     </div>
 
-    {/* ราคา / action */}
+{/* ราคา / action */}
     <div className="text-right shrink-0 min-w-0">
-      <div className="text-xs whitespace-nowrap">ซื้อ {p.buy_price}</div>
-      <div className="text-xs whitespace-nowrap">ขาย {p.sell_price}</div>
-      <div className={"text-xs whitespace-nowrap " + (p.stock <= p.min_qty_alert ? "text-red-600" : "text-gray-400")}>
+      <div className="text-xs whitespace-nowrap text-gray-500">ซื้อ {p.buy_price}</div>
+      
+      {/* 🌟 จุดที่แก้ไข: แสดงราคาเต็มแบบขีดฆ่า และไฮไลท์ราคาขายสีแดงเมื่อมีส่วนลด */}
+      <div className="text-xs whitespace-nowrap mt-0.5">
+        {p.original_price && Number(p.original_price) > Number(p.sell_price) && (
+          <span className="text-[10px] text-gray-400 line-through mr-1.5">
+            {p.original_price}
+          </span>
+        )}
+        ขาย <span className={p.original_price && Number(p.original_price) > Number(p.sell_price) ? "text-red-600 font-semibold" : ""}>
+          {p.sell_price}
+        </span>
+      </div>
+
+      <div className={"text-xs whitespace-nowrap mt-0.5 " + (p.stock <= p.min_qty_alert ? "text-red-600" : "text-gray-500")}>
         คงเหลือ {Number(p.stock ?? 0).toLocaleString()}
       </div>
 
