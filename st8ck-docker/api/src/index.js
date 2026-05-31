@@ -1019,3 +1019,18 @@ await query(`
   ADD COLUMN IF NOT EXISTS payment_slip_url TEXT
 `);
 
+// --- API สำหรับ Login ---
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body || {};
+  
+  // กำหนด Username และ Password ที่ต้องการตรงนี้ (สามารถเปลี่ยนได้)
+  const ADMIN_USER = 'admin';
+  const ADMIN_PASS = '123456'; 
+
+  if (username === ADMIN_USER && password === ADMIN_PASS) {
+    // ถ้ารหัสถูก ส่ง Token กลับไป (ในระบบจริงควรสร้างเป็น JWT)
+    res.json({ ok: true, token: 'mock-admin-token-999' });
+  } else {
+    res.status(401).json({ error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
+  }
+});

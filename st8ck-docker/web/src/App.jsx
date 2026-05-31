@@ -1,5 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 
+
+
+
 // --- Configuration & Constants ---
 // By setting API to an empty string, the browser will automatically use
 // the current domain and port for API requests. This is the correct
@@ -1949,14 +1952,111 @@ function BillsPage() {
   );
 }
 
+function AdminLogin({ onLogin }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.error || 'เข้าสู่ระบบไม่สำเร็จ');
+      
+      onLogin(data.token);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-green-50 p-4 font-sans">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 border border-green-100">
+        <div className="text-center mb-8">
+          <div className="text-4xl font-extrabold text-green-700 mb-2">St8ck</div>
+          <p className="text-sm text-gray-500">ระบบจัดการหลังบ้าน (Admin Panel)</p>
+        </div>
+
+        {error && (
+          <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm text-center">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">ชื่อผู้ใช้</label>
+            <input 
+              type="text" 
+              className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:ring-2 focus:ring-green-500 transition"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">รหัสผ่าน</label>
+            <input 
+              type="password" 
+              className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:ring-2 focus:ring-green-500 transition"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full bg-green-600 text-white rounded-xl py-3.5 font-bold hover:bg-green-700 disabled:opacity-50 transition shadow-sm"
+          >
+            {loading ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบ'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 // --- Main App Component ---
 export default function App() {
+  // 🌟 เพิ่ม State สำหรับจัดการ Login
+  const [token, setToken] = useState(() => localStorage.getItem('st8ck_admin_token'));
+  
   const [tab, setTab] = useState(0);
-const mainTabLabels = ['สินค้า', 'ขาย', 'ซื้อ', 'คงเหลือ'];
-const reportTabLabels = ['บิล', 'รายงานขาย', 'รายงานซื้อ'];
+  const mainTabLabels = ['สินค้า', 'ขาย', 'ซื้อ', 'คงเหลือ'];
+  const reportTabLabels = ['บิล', 'รายงานขาย', 'รายงานซื้อ'];
 
+  // ฟังก์ชันตอน Login ผ่าน
+  const handleLogin = (newToken) => {
+    localStorage.setItem('st8ck_admin_token', newToken);
+    setToken(newToken);
+  };
+
+  // ฟังก์ชันตอนกดออกจากระบบ
+  const handleLogout = () => {
+    if(!confirm('ต้องการออกจากระบบใช่หรือไม่?')) return;
+    localStorage.removeItem('st8ck_admin_token');
+    setToken(null);
+  };
+
+  // 🌟 ถ้ายังไม่มี Token ให้สกัดหน้าจอไว้ที่ AdminLogin ก่อนเลย
+  if (!token) {
+    return <AdminLogin onLogin={handleLogin} />;
+  }
+
+  // ... (โค้ดเดิมของคุณที่ดึงปุ่ม topNavButtons ฯลฯ) ...
 const topNavButtons = [
   { tab: 98, icon: '🏪', label: 'ร้านค้า' },
   { tab: 100, icon: '⭐', label: 'รีวิว' },
@@ -1995,7 +2095,16 @@ const topNavButtons = [
       <span aria-hidden="true">{item.icon}</span>
     </button>
   ))}
-</div>
+{/* 🌟 เพิ่มปุ่มออกจากระบบตรงนี้ */}
+              <div className="w-px h-6 bg-green-300 mx-1"></div> {/* เส้นคั่น */}
+              <button 
+                onClick={handleLogout} 
+                className="ml-1 px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition font-medium"
+              >
+                ออก
+              </button>
+              
+            </div>
           </div>
         </header>
 
