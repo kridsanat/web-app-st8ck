@@ -388,7 +388,8 @@ function CartDrawer({ open, onClose, cart, onCheckout, shipMethods, shipping, se
           </div>
 
           <div className="border-t p-4 space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* 🌟 แก้ไขบรรทัดล่างนี้จาก grid เป็น flex flex-col เพื่อให้อยู่คนละบรรทัด */}
+            <div className="flex flex-col gap-3">
               <label className="text-xs">
                 วิธีจัดส่ง
                 <select value={shipping?.method_id || ''} onChange={(e) => {
