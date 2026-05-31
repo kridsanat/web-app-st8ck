@@ -245,9 +245,7 @@ function ProductCard({ p, onAdd }) {
 
   return (
     <div className="group rounded-2xl border p-3 hover:shadow-sm transition bg-white flex flex-col relative">
-
-
-<div className="relative shrink-0">
+      <div className="relative shrink-0">
         <ProductImageCarousel images={imgs} onOpen={(i) => { setLbIndex(i); setLbOpen(true); }} />
         {lbOpen && <ImageLightbox images={imgs} index={lbIndex} onClose={() => setLbOpen(false)} />}
         
@@ -258,14 +256,7 @@ function ProductCard({ p, onAdd }) {
           </div>
         )}
 
-        {/* 🌟 ป้าย ปักหมุด (แนะนำให้ไว้ซ้ายบน ใต้ป้ายสต๊อก) */}
-        {p.variants.some(v => v.is_pinned) && (
-          <div className="absolute left-2 top-8 z-10 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-amber-900 shadow-sm flex items-center gap-1">
-            <span>📌</span> แนะนำ
-          </div>
-        )}
-
-        {/* ป้าย % ส่วนลด (ขวาบน) */}
+        {/* 🌟 ป้าย % ส่วนลด (ขวาบน) */}
         {hasDiscount && (
           <div className="absolute right-2 top-2 z-10 rounded bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600 shadow-sm border border-red-200">
             ลด {discountPercent}%
@@ -954,21 +945,10 @@ export default function OnlineShop() {
         displayPrice: minP === maxP ? toMoney(minP) : `${toMoney(minP)} - ${toMoney(maxP)}`
       };
 }).sort((a, b) => {
-      // 1. เช็คว่ากลุ่มนี้มีสินค้าย่อยตัวไหนถูกปักหมุดไหม
-      const pinA = a.variants.some(v => v.is_pinned) ? 1 : 0;
-      const pinB = b.variants.some(v => v.is_pinned) ? 1 : 0;
-      
-      // เอาปักหมุด (1) ขึ้นก่อนไม่ปักหมุด (0)
-      if (pinA !== pinB) return pinB - pinA; 
-
-      // 2. ถ้าสถานะปักหมุดเท่ากัน ค่อยเรียงตามสต๊อก
       const r = stockRank(a.totalStock) - stockRank(b.totalStock);
       if (r !== 0) return r;
-      
-      // 3. เรียงตามชื่อตัวอักษร
       return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base', numeric: true });
-ฃ});
-
+    });
   }, [products, query]);
 
   const add = (p) => {
@@ -1089,16 +1069,55 @@ export default function OnlineShop() {
         <VideoReviewSection items={videoReviews} />
         <CustomerReviewSection items={customerReviews} />
 
-        {!loading && !error && (
+{!loading && !error && (
           <>
-            <div className="mt-12 mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">รายการสินค้า</h2>
-            </div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {groupedProducts.map((p) => (
-                <ProductCard key={p.id} p={p} onAdd={add} />
-              ))}
-            </div>
+            {/* 🌟 แยกกลุ่มสินค้าที่ปักหมุด และไม่ได้ปักหมุดออกจากกัน */}
+            {(() => {
+              const pinnedProducts = groupedProducts.filter(p => p.variants.some(v => v.is_pinned));
+              const normalProducts = groupedProducts.filter(p => !p.variants.some(v => v.is_pinned));
+
+              return (
+                <>
+                  {/* แสดง Section สินค้าปักหมุด (ถ้ามี) */}
+                  {pinnedProducts.length > 0 && (
+                    <div className="mb-10">
+                      <div className="mt-10 mb-4 flex items-center gap-2">
+                        <span className="text-2xl">📌</span>
+                        <h2 className="text-xl font-semibold text-gray-900">สินค้าแนะนำ</h2>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                        {pinnedProducts.map((p) => (
+                          <ProductCard key={p.id} p={p} onAdd={add} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* แสดง Section สินค้าปกติ */}
+                  {normalProducts.length > 0 && (
+                    <div className="mb-10">
+                      <div className="mt-10 mb-4">
+                        <h2 className="text-xl font-semibold text-gray-900">
+                          {pinnedProducts.length > 0 ? "สินค้าทั้งหมด" : "รายการสินค้า"}
+                        </h2>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                        {normalProducts.map((p) => (
+                          <ProductCard key={p.id} p={p} onAdd={add} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* กรณีไม่มีสินค้าเลย */}
+                  {groupedProducts.length === 0 && (
+                    <div className="mt-12 text-center text-gray-500 py-10">
+                      ไม่พบสินค้าที่คุณค้นหา
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </>
         )}
       </main>
