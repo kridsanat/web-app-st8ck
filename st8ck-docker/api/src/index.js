@@ -239,7 +239,22 @@ app.post('/api/products', async (req, res) => {
 
 
 
+// 1. เพิ่มคำสั่ง ALTER TABLE (วางไว้ใกล้ๆ กับอันเดิมที่เคยทำ original_price)
+await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE`);
 
+// 2. สร้าง API สำหรับกดสลับสถานะปักหมุด (Toggle Pin)
+app.patch('/api/products/:id/pin', async (req, res) => {
+  try {
+    const { is_pinned } = req.body;
+    const r = await query(
+      `UPDATE products SET is_pinned = $1 WHERE id = $2 RETURNING *`, 
+      [!!is_pinned, req.params.id]
+    );
+    res.json(r.rows[0]);
+  } catch(e) { 
+    res.status(400).json({error: e.message}); 
+  }
+});
 
 
 
@@ -1024,8 +1039,8 @@ app.post('/api/login', (req, res) => {
   const { username, password } = req.body || {};
   
   // กำหนด Username และ Password ที่ต้องการตรงนี้ (สามารถเปลี่ยนได้)
-  const ADMIN_USER = 'admin';
-  const ADMIN_PASS = '123456'; 
+  const ADMIN_USER = 'iamadmin';
+  const ADMIN_PASS = 'St8ck8890'; 
 
   if (username === ADMIN_USER && password === ADMIN_PASS) {
     // ถ้ารหัสถูก ส่ง Token กลับไป (ในระบบจริงควรสร้างเป็น JWT)

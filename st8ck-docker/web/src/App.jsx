@@ -292,6 +292,23 @@ const handleEdit = (product) => {
   };
   const handleDelete = (product) => setProductToDelete(product);
 
+const handleTogglePin = async (p) => {
+    try {
+      const newStatus = !p.is_pinned;
+      const res = await fetch(`${API}/api/products/${p.id}/pin`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_pinned: newStatus })
+      });
+      if (!res.ok) throw new Error('Failed to pin');
+      
+      // อัปเดตหน้าจอทันที
+      setProducts(prev => prev.map(x => x.id === p.id ? { ...x, is_pinned: newStatus } : x));
+    } catch (e) {
+      alert('เปลี่ยนสถานะปักหมุดไม่สำเร็จ');
+    }
+  };
+
   // เรียงตาม "รหัสสินค้า"
   const byCode = (a, b) =>
     String(a.code ?? '').localeCompare(String(b.code ?? ''), undefined, { numeric: true, sensitivity: 'base' });
@@ -769,6 +786,9 @@ body: JSON.stringify({
       )}
     </div>
 
+
+
+
     {/* ราคา / action */}
     <div className="text-right shrink-0 min-w-0">
       <div className="text-xs whitespace-nowrap text-gray-500">ซื้อ {p.buy_price}</div>
@@ -791,11 +811,19 @@ body: JSON.stringify({
         คงเหลือ {Number(p.stock ?? 0).toLocaleString()}
       </div>
 
-      <div className="mt-2 flex flex-col items-end gap-1">
+<div className="mt-2 flex flex-col items-end gap-1">
+        {/* 🌟 ปุ่มปักหมุด */}
+        <button 
+          onClick={() => handleTogglePin(p)} 
+          className={`text-xs font-medium hover:underline ${p.is_pinned ? 'text-amber-600' : 'text-gray-400'}`}
+        >
+          {p.is_pinned ? '📌 ปลดหมุด' : '📍 ปักหมุด'}
+        </button>
+        
         <button onClick={() => setImageMgrId(p.id)} className="text-xs font-medium text-indigo-600 hover:underline">รูปภาพ</button>
         <button onClick={() => handleEdit(p)} className="text-xs font-medium text-blue-600 hover:underline">แก้ไข</button>
         <button onClick={() => handleDelete(p)} className="text-xs font-medium text-red-600 hover:underline">ลบ</button>
-      </div>
+</div>
     </div>
   </div>
 ))}
