@@ -651,11 +651,26 @@ function InlineVideoCard({ item }) {
 // 2. แทนที่ VideoReviewSection เดิมด้วยอันนี้
 function VideoReviewSection({ items = [] }) {
   const [page, setPage] = React.useState(1);
-  const itemsPerPage = 3; 
+  
+  // เช็คว่าเป็นหน้าจอมือถือหรือไม่ (กว้างน้อยกว่า 640px)
+  const [isMobile, setIsMobile] = React.useState(
+    typeof window !== 'undefined' ? window.innerWidth < 640 : false
+  );
+
+  React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // 🌟 กำหนดจำนวน: มือถือแสดง 1 คลิป / คอมแสดง 3 คลิป
+  const itemsPerPage = isMobile ? 1 : 3; 
   const totalPages = Math.ceil(items.length / itemsPerPage);
   const currentItems = items.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
-  React.useEffect(() => { setPage(1); }, [items]);
+  // รีเซ็ตหน้ากลับไปหน้าแรก เมื่อเปลี่ยนหมวดหรือสลับขนาดจอ
+  React.useEffect(() => { setPage(1); }, [items, itemsPerPage]);
+  
   if (!items.length) return null;
 
   return (
@@ -665,7 +680,6 @@ function VideoReviewSection({ items = [] }) {
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {currentItems.map((item) => (
-          // เรียกใช้ InlineVideoCard แทนปุ่มแบบเดิม
           <InlineVideoCard key={item.id} item={item} />
         ))}
       </div>
@@ -679,14 +693,27 @@ function VideoReviewSection({ items = [] }) {
       )}
     </section>
   );
-}
+} 
 
 function CustomerReviewSection({ items = [] }) {
   const [lbOpen, setLbOpen] = React.useState(false);
   const [lbImages, setLbImages] = React.useState([]);
   const [lbIndex, setLbIndex] = React.useState(0);
   const [page, setPage] = React.useState(1);
-  const itemsPerPage = 4;
+  
+  // เช็คว่าเป็นหน้าจอมือถือหรือไม่
+  const [isMobile, setIsMobile] = React.useState(
+    typeof window !== 'undefined' ? window.innerWidth < 640 : false
+  );
+
+  React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // 🌟 กำหนดจำนวน: มือถือแสดง 2 รีวิว / คอมแสดง 4 รีวิว
+  const itemsPerPage = isMobile ? 2 : 4;
   const totalPages = Math.ceil(items.length / itemsPerPage);
   const currentItems = items.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
@@ -697,12 +724,15 @@ function CustomerReviewSection({ items = [] }) {
     setLbOpen(true);
   };
 
-  React.useEffect(() => { setPage(1); }, [items]);
+  React.useEffect(() => { setPage(1); }, [items, itemsPerPage]);
+  
   if (!items.length) return null;
 
   return (
     <section className="mt-10">
       <div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-semibold text-gray-900">รีวิว</h2></div>
+      
+      {/* ส่วน Grid ยังคงแสดง 2 คอลัมน์บนมือถือตามเดิม */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4">
         {currentItems.map((item) => (
           <div key={item.id} className="w-full overflow-hidden rounded-2xl border bg-white shadow-sm">
@@ -720,6 +750,7 @@ function CustomerReviewSection({ items = [] }) {
           </div>
         ))}
       </div>
+      
       {totalPages > 1 && (
         <div className="mt-6 flex items-center justify-start gap-3">
           <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="rounded-xl border bg-white px-4 py-2 text-sm text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white">‹ ก่อนหน้า</button>
