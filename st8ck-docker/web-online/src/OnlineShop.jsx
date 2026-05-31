@@ -853,6 +853,7 @@ export default function OnlineShop() {
             name: p.name ?? "",
             price: Number(p.sell_price ?? p.price ?? 0),
             original_price: Number(p.original_price ?? 0) || null,
+            is_pinned: !!p.is_pinned, // 👈 🌟 เพิ่มบรรทัดนี้ลงไป
             image_url: imgs[0] || "",
             images: imgs,
             stock_qty,
@@ -977,6 +978,7 @@ export default function OnlineShop() {
           name: p.name ?? "",
           price: Number(p.sell_price ?? p.price ?? 0),
           original_price: Number(p.original_price ?? 0) || null,
+          is_pinned: !!p.is_pinned, // 👈 🌟 เพิ่มบรรทัดนี้ลงไป
           image_url: imgs[0] || "",
           images: imgs,
           stock_qty: (inProduct !== undefined) ? inProduct : stockMap[p.id],
